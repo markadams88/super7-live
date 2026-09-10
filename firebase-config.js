@@ -4,7 +4,15 @@
    Leave it as null to run in LOCAL DEMO mode: everything stays inside one
    browser and the teacher and student tabs talk to each other through the
    browser only, which is enough to try the app out. */
-window.S7_FIREBASE = null;
+window.S7_FIREBASE = {
+  apiKey: "AIzaSyCEup7CRDqBDnIPYDivPELoxt9L8wnCTn8",
+  authDomain: "aums-super7.firebaseapp.com",
+  databaseURL: "https://aums-super7-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "aums-super7",
+  storageBucket: "aums-super7.firebasestorage.app",
+  messagingSenderId: "673140786235",
+  appId: "1:673140786235:web:52163e122c353df1ec081e"
+};
 /* Example:
 window.S7_FIREBASE = {
   apiKey: "AIza...",
