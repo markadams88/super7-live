@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Super 7 Live</title>
+<link rel="stylesheet" href="vendor/katex.css">
+<link rel="stylesheet" href="app.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="vendor/katex.min.js"></script>
+<script src="vendor/auto-render.min.js"></script>
+<script src="firebase-config.js"></script>
+<script src="packs/index.js"></script>
+<script src="shared.js"></script>
+</head>
+<body>
+<div class="top">
+  <span class="flash"><b>7</b>Super 7 Live</span>
+  <span class="ttl" id="ttl">Free online GCSE maths · AUMS</span>
+  <span class="sp"></span>
+  <span class="pill" id="who" style="display:none"></span>
+  <span class="pill live" id="state">not started</span>
+</div>
+<div id="demo" class="demo" style="display:none">Local demo mode: this browser only. Add the Firebase config to go live.</div>
+<div class="note" id="note"><div><span class="who">Mr Adams says</span><span id="notetext"></span></div><button class="btn small grey" id="noteok">OK</button></div>
+<div id="main"></div>
+<div id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+var db=S7.openDB(), uid=S7.uid(), main=document.getElementById('main');
+if(db.kind==='local') document.getElementById('demo').style.display='block';
+var sid=null, pack=null, state=null, me=null, ext=null, myWork={}, name=null, view={mode:null,key:null}, boards={}, unsubs=[];
+try{ name=localStorage.getItem('s7name'); }catch(e){}
+function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(function(){t.classList.remove('show');},2200); }
+function base(){ return 's7/sessions/'+sid; }
+function statePill(t){ document.getElementById('state').textContent=t; }
+
+/* ---------- 1. find the current session ---------- */
+db.on('s7/current', function(cur){
+  var want=S7.param('s', cur);
+  if(!want){ renderWaitingForSession(); return; }
+  if(want!==sid){ sid=want; joinSession(); }
+});
+function renderWaitingForSession(){
+  statePill('not started');
+  main.innerHTML='<div class="center"><div class="card"><div class="eyebrow"><i></i>Super 7 Live</div><h1>Nothing running yet</h1><p class="muted" style="margin-top:10px">This page wakes up when Mr Adams starts the session. Keep it open.</p></div></div>';
+}
+
+/* ---------- 2. join ---------- */
+function joinSession(){
+  unsubs.forEach(function(u){u();}); unsubs=[];
+  unsubs.push(db.on(base()+'/meta', function(meta){
+    if(!meta){ renderWaitingForSession(); return; }
+    pack=S7.pack(meta.pack);
+    document.getElementById('ttl').textContent=pack?pack.title:'Super 7';
+    if(!pack){ main.innerHTML='<div class="center"><div class="card"><h1>Missing pack</h1><p class="muted">This session uses a question pack this page does not have. Refresh the page.</p></div></div>'; return; }
+    if(!name) renderJoin(); else register();
+  }));
+}
+function renderJoin(){
+  statePill('join');
+  main.innerHTML='<div class="center"><div class="card"><div class="eyebrow"><i></i>'+S7.esc(pack.title)+'</div><h1>Join the session</h1>'+
+    '<p class="muted" style="margin:10px 0 4px">First name and initial, please (for example <b>Amira K</b>). Silly names get removed.</p>'+
+    '<input id="nm" placeholder="Your name" maxlength="24" autocomplete="off" style="width:100%;border:2px solid var(--deep);border-radius:9px;padding:10px 12px;font-size:18px;margin:8px 0 12px">'+
+    '<button class="btn" id="join" style="width:100%">Join</button></div></div>';
+  var inp=document.getElementById('nm'); inp.focus();
+  function go(){ var n=S7.cleanName(inp.value); if(n.length<2){ toast('Type your name first'); return; } name=n; try{localStorage.setItem('s7name',n);}catch(e){} register(); }
+  document.getElementById('join').onclick=go; inp.addEventListener('keydown',function(e){ if(e.key==='Enter') go(); });
+}
+function register(){
+  db.update(base()+'/students/'+uid, {name:name, joined:S7.now(), seen:S7.now(), kicked:false});
+  document.getElementById('who').textContent=name; document.getElementById('who').style.display='inline-block';
+  setInterval(function(){ if(sid) db.update(base()+'/students/'+uid, {seen:S7.now()}); }, 20000);
+  unsubs.push(db.on(base()+'/students/'+uid, function(s){ me=s;
+    if(s && s.kicked){ renderKicked(); }
+    else if(!s && name){ /* the teacher reset the session: quietly rejoin */ db.update(base()+'/students/'+uid, {name:name, joined:S7.now(), seen:S7.now(), kicked:false}); view={mode:null,key:null}; }
+  }));
+  unsubs.push(db.on(base()+'/state', function(s){ state=s||{mode:'lobby'}; render(); }));
+  unsubs.push(db.on(base()+'/ext/'+uid, function(e){ ext=e; render(); }));
+  unsubs.push(db.on(base()+'/work/'+uid, function(w){ myWork=w||{}; syncBoardsFromRemote(); }));
+  unsubs.push(db.on(base()+'/comments/'+uid, function(c){ showNote(c); }));
+}
+function renderKicked(){
+  statePill('removed');
+  name=null; try{localStorage.removeItem('s7name');}catch(e){}
+  main.innerHTML='<div class="center"><div class="card"><h1>You have been removed</h1><p class="muted" style="margin-top:10px">Join again with your real first name and initial.</p><button class="btn" style="margin-top:14px" onclick="location.reload()">Join again</button></div></div>';
+}
+var lastNoteT=0;
+function showNote(c){
+  var n=document.getElementById('note');
+  if(!c||!c.text){ n.classList.remove('show'); return; }
+  if(c.t===lastNoteT) return; lastNoteT=c.t;
+  document.getElementById('notetext').textContent=c.text; n.classList.add('show');
+  try{ navigator.vibrate && navigator.vibrate(80); }catch(e){}
+}
+document.getElementById('noteok').onclick=function(){ document.getElementById('note').classList.remove('show'); };
+
+/* ---------- 3. render by mode ---------- */
+function render(){
+  if(!state||!pack||(me&&me.kicked)) return;
+  var mode=state.mode||'lobby';
+  var key = mode==='youdo' ? ('y'+state.q) : mode;
+  if(view.mode===mode && view.key===key){ refreshDynamic(); return; }
+  view={mode:mode,key:key}; boards={};
+  if(mode==='lobby') renderLobby();
+  else if(mode==='youdo') renderYoudo(state.q);
+  else if(mode==='grid') renderGrid();
+  else if(mode==='end') renderEnd();
+  refreshDynamic();
+}
+function renderLobby(){
+  statePill('waiting');
+  main.innerHTML='<div class="center"><div class="card"><div class="eyebrow"><i></i>'+S7.esc(pack.title)+'</div><h1>You are in, '+S7.esc(name)+'</h1>'+
+    '<p class="muted" style="margin-top:10px">Watch the Teams screen. When Mr Adams says "You do", the question appears here. Write your working on the board with a finger, stylus or mouse, then type your answer in the box.</p></div></div>';
+}
+function qCard(item, keyPrefix, eyebrowText, cls){
+  var k=keyPrefix;
+  return '<div class="card '+(cls||'')+'" id="card-'+k+'">'+
+    '<div class="eyebrow '+(keyPrefix[0]==='y'?'you':'')+'"><i></i>'+S7.esc(eyebrowText)+'</div>'+
+    '<div class="qrow"><div class="q">'+(item.sub?'<span class="sub">'+S7.esc(item.sub)+'</span>':'')+item.q+'</div>'+(item.svg?'<div class="diag">'+item.svg+'</div>':'')+'</div>'+
+    '<div class="boardwrap"><canvas class="board" id="cv-'+k+'"></canvas><div id="tools-'+k+'">'+S7.toolsHTML()+'</div></div>'+
+    '<div class="ansrow"><label for="an-'+k+'">Answer</label><input id="an-'+k+'" placeholder="type your answer, with units" autocomplete="off"><button class="btn go" data-check="'+k+'">Check</button></div>'+
+    '<div class="fb" id="fb-'+k+'"></div>'+
+    '<div id="sol-'+k+'"></div>'+
+  '</div>';
+}
+function solHTML(item){
+  return '<div class="sol"><div class="lab">Worked solution</div>'+(item.steps||[]).map(function(s){return '<div class="step"><div class="t">'+S7.esc(s.t||'')+'</div><div>'+s.m+'</div></div>';}).join('')+
+    (item.final?'<div class="final">'+item.final+'</div>':'')+'</div>';
+}
+function renderYoudo(q){
+  statePill('You do '+q);
+  var item=pack.youdo.filter(function(y){return y.n===q;})[0];
+  if(!item){ main.innerHTML='<div class="center"><div class="card"><h1>Waiting…</h1></div></div>'; return; }
+  var html='<div class="wrap">'+qCard(item,'y'+q,'You do '+q+' · your go');
+  html+='<div id="extslot"></div></div>';
+  main.innerHTML=html;
+  wireCard('y'+q, item.answer);
+}
+function renderExt(q){
+  var item=pack.youdo.filter(function(y){return y.n===q;})[0]; if(!item||!item.ext) return;
+  var slot=document.getElementById('extslot'); if(!slot||document.getElementById('card-x'+q)) return;
+  slot.innerHTML='<div class="ext"><div class="lab">Extension · just for you</div><div class="msg"><b>Great, you have got that.</b> Have a little go at this extension before we move on. If you do not finish it, screenshot it if you want; we will not go through these together.</div>'+
+    qCard(item.ext,'x'+q,'Extension · You do '+q)+'</div>';
+  wireCard('x'+q, item.ext.answer);
+  S7.tex(slot);
+  document.getElementById('card-x'+q).scrollIntoView({behavior:'smooth',block:'start'});
+}
+function renderGrid(){
+  statePill('the twelve');
+  var html='<div class="wrap"><div class="card"><div class="eyebrow"><i></i>'+S7.esc(pack.title)+' · the twelve</div><h1>Your twelve for this week</h1>'+
+    '<p class="muted" style="margin-top:6px">Tap a question to open it with a board. Answers and worked solutions unlock when Mr Adams releases them. Your ticks are saved on this device.</p>'+
+    '<div class="ggrid" id="ggrid">'+pack.grid.map(function(g){
+      return '<div class="gcell" data-g="'+g.n+'" id="gc-'+g.n+'"><div class="n">Q'+g.n+(g.marks?' · '+g.marks+' mark'+(g.marks>1?'s':''):'')+'</div><div class="t">'+g.q+'</div><span class="st" id="gst-'+g.n+'"></span><div class="ans" id="ga-'+g.n+'" style="display:none"></div></div>';
+    }).join('')+'</div></div><div id="gopen"></div></div>';
+  main.innerHTML=html;
+  document.getElementById('ggrid').addEventListener('click',function(e){ var c=e.target.closest('.gcell'); if(c) openGridQ(+c.dataset.g); });
+}
+function openGridQ(n){
+  var g=pack.grid[n-1]; var slot=document.getElementById('gopen');
+  slot.innerHTML=qCard(g,'g'+n,'Question '+n+' of 12'+(g.marks?' · '+g.marks+' marks':''));
+  var b=slot.querySelector('.card'); b.insertAdjacentHTML('afterbegin','<button class="btn small grey" style="float:right" id="gclose">Close</button>');
+  document.getElementById('gclose').onclick=function(){ slot.innerHTML=''; };
+  wireCard('g'+n, g.answer); S7.tex(slot); refreshDynamic();
+  slot.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function renderEnd(){
+  statePill('finished');
+  main.innerHTML='<div class="center"><div class="card"><div class="eyebrow"><i></i>'+S7.esc(pack.title)+'</div><h1>That is it for tonight</h1><p class="muted" style="margin-top:10px">'+(pack.next||'See you next Monday at 18:10.')+'</p></div></div>';
+  S7.tex(main);
+}
+
+/* ---------- wiring a question card ---------- */
+function wireCard(k, answer){
+  var cv=document.getElementById('cv-'+k);
+  var board=S7.Board(cv,{onChange:function(strokes){ db.update(base()+'/work/'+uid+'/'+k, {s:strokes, t:S7.now()}); }});
+  boards[k]=board;
+  S7.wireTools(document.getElementById('tools-'+k), board);
+  var w=myWork[k]; if(w){ board.setStrokes(w.s||[]); if(w.a){ document.getElementById('an-'+k).value=w.a; feedback(k,w.ok); } }
+  var btn=document.querySelector('[data-check="'+k+'"]'), inp=document.getElementById('an-'+k);
+  function check(){
+    var v=inp.value.trim(); if(!v){ toast('Type an answer first'); return; }
+    var ok=S7.checkAnswer(answer, v);
+    feedback(k, ok);
+    db.update(base()+'/work/'+uid+'/'+k, {a:v, ok:ok, t:S7.now()});
+  }
+  btn.onclick=check; inp.addEventListener('keydown',function(e){ if(e.key==='Enter') check(); });
+  S7.tex(document.getElementById('card-'+k));
+}
+function feedback(k, ok){
+  var fb=document.getElementById('fb-'+k); if(!fb) return;
+  fb.className='fb'+(ok===true?' ok':(ok===false?' no':''));
+  fb.textContent= ok===true ? 'Correct. Nice one.' : (ok===false ? 'Not that one. Check your working and try again.' : '');
+}
+function syncBoardsFromRemote(){
+  /* only paint from remote if the local board is empty (first load / another device) */
+  for(var k in boards){ var w=myWork[k]; if(w&&w.s&&!boards[k].strokes.length){ boards[k].setStrokes(w.s); } }
+}
+/* things that change without changing the page: reveals, extension, grid answers */
+function refreshDynamic(){
+  if(!state||!pack) return;
+  var mode=state.mode||'lobby', rev=state.reveal||{};
+  if(mode==='youdo'){
+    var q=state.q, item=pack.youdo.filter(function(y){return y.n===q;})[0]; if(!item) return;
+    var sol=document.getElementById('sol-y'+q);
+    if(sol){ if(rev['y'+q] && !sol.innerHTML){ sol.innerHTML=solHTML(item); S7.tex(sol); } if(!rev['y'+q]) sol.innerHTML=''; }
+    if(ext && ext.q===q) renderExt(q);
+    var xs=document.getElementById('sol-x'+q);
+    if(xs && item.ext){ if(rev['x'+q] && !xs.innerHTML){ xs.innerHTML=solHTML(item.ext); S7.tex(xs); } if(!rev['x'+q]) xs.innerHTML=''; }
+  }
+  if(mode==='grid'){
+    pack.grid.forEach(function(g){
+      var w=myWork['g'+g.n], cell=document.getElementById('gc-'+g.n), st=document.getElementById('gst-'+g.n), a=document.getElementById('ga-'+g.n);
+      if(!cell) return;
+      cell.classList.toggle('done', !!(w&&w.ok===true)); cell.classList.toggle('wrong', !!(w&&w.ok===false));
+      st.textContent = w&&w.ok===true?'✓':(w&&w.ok===false?'✗':'');
+      if(state.gridAnswers){ a.style.display='block'; a.textContent='Answer: '+g.a; } else a.style.display='none';
+      var sol=document.getElementById('sol-g'+g.n);
+      if(sol){ if(state.gridSolutions && !sol.innerHTML){ sol.innerHTML=solHTML(g); S7.tex(sol); } if(!state.gridSolutions) sol.innerHTML=''; }
+    });
+  }
+}
+})();
+</script>
+</body>
+</html>

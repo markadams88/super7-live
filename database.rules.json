@@ -1,0 +1,17 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "s7": {
+      ".read": true,
+      ".write": true,
+      "sessions": {
+        "$sid": {
+          "students": { "$uid": { "name": { ".validate": "newData.isString() && newData.val().length <= 24" } } },
+          "comments": { "$uid": { "text": { ".validate": "newData.isString() && newData.val().length <= 300" } } },
+          "work": { "$uid": { "$key": { "a": { ".validate": "newData.isString() && newData.val().length <= 40" } } } }
+        }
+      }
+    }
+  }
+}

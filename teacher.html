@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Super 7 Live · Teacher</title>
+<link rel="stylesheet" href="vendor/katex.css">
+<link rel="stylesheet" href="app.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="vendor/katex.min.js"></script>
+<script src="vendor/auto-render.min.js"></script>
+<script src="firebase-config.js"></script>
+<script src="packs/index.js"></script>
+<script src="shared.js"></script>
+</head>
+<body>
+<div id="gate" class="gate"><div class="card"><div class="eyebrow"><i></i>Super 7 Live · teacher</div><h1>Teacher PIN</h1>
+  <input id="pin" type="password" inputmode="numeric" placeholder="PIN" autocomplete="off"><button class="btn" id="pingo" style="width:100%">Open the teacher screen</button>
+  <p class="muted" style="margin-top:10px">The PIN is set in firebase-config.js.</p></div></div>
+
+<div id="app" style="display:none">
+<div class="top">
+  <span class="flash"><b>7</b>Super 7 Live · teacher</span>
+  <select id="packsel"></select>
+  <button class="btn small gold" id="start">Start session</button>
+  <button class="btn small grey" id="reset" title="Clears every student, board and answer">Reset</button>
+  <span class="sp"></span>
+  <span class="pill" id="count">0 students</span>
+  <span class="pill live" id="modepill">lobby</span>
+  <button class="btn small grey" id="fs" title="Fullscreen">⛶</button>
+</div>
+<div id="demo" class="demo" style="display:none">Local demo mode: this browser only. Open index.html in another tab to play the student. Add the Firebase config to go live.</div>
+<div class="ctl">
+  <span class="lbl">Show students</span>
+  <button class="btn small grey" data-mode="lobby">Lobby</button>
+  <span id="ydbtns"></span>
+  <button class="btn small grey" data-mode="grid">The twelve</button>
+  <button class="btn small grey" data-mode="end">Finish</button>
+  <span class="sep"></span>
+  <span id="modectl"></span>
+</div>
+<div class="stats" id="stats"></div>
+<div class="qpanel" id="qpanel" style="display:none"></div>
+<div class="tiles" id="tiles"></div>
+<div class="wrap" id="linkrow" style="padding-top:0"><div class="linkbox"><span class="lbl" style="font-size:11.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#6b6470">Student link</span><code id="slink"></code><button class="btn small grey" id="copylink">Copy</button></div></div>
+</div>
+
+<div id="focus"><div class="box">
+  <div class="hd"><h2 id="fname">Student</h2><span class="pill" id="fstate" style="background:#F3E5F5;color:var(--deep);border-radius:999px;padding:4px 12px;font-weight:800;font-size:13px"></span>
+    <button class="btn small grey" id="fprev">‹ prev</button><button class="btn small grey" id="fnext">next ›</button>
+    <button class="btn small gold" id="fext">Send extension</button><button class="btn small red" id="fkick">Remove</button><button class="btn small grey" id="fclose">✕</button></div>
+  <div class="row" style="margin:0 0 8px"><span class="lbl" style="font-size:11.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#6b6470" id="fwhich">You do</span><span id="fans" style="font-weight:800"></span></div>
+  <canvas class="fcv" id="fcv"></canvas>
+  <div class="row"><textarea id="ftext" placeholder="Comment to this student (they see it straight away)"></textarea><button class="btn" id="fsend">Send</button><button class="btn grey" id="fclear">Clear their note</button></div>
+  <div class="quick" id="fquick"></div>
+</div></div>
+<div id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+var db=S7.openDB(), sid=null, pack=null, state={mode:'lobby'}, students={}, work={}, exts={}, comments={}, sel={}, focusUid=null, unsubs=[], meta=null;
+var QUICK=['Nice, that is right.','Check which lengths match each other.','Whole side, not the part.','Square root first, then cube.','You have used k, you need k squared.','You have used k squared, you need k cubed.','Show your working: k first.','Units? What does a litre measure?','Nearly. Look at the last line again.'];
+function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(function(){t.classList.remove('show');},2200); }
+function base(){ return 's7/sessions/'+sid; }
+function esc(s){ return S7.esc(s); }
+if(db.kind==='local') document.getElementById('demo').style.display='block';
+
+/* ---------- PIN gate ---------- */
+var pinOK=false; try{ pinOK=localStorage.getItem('s7teacher')===String(window.S7_TEACHER_PIN); }catch(e){}
+function openApp(){ document.getElementById('gate').style.display='none'; document.getElementById('app').style.display='block'; init(); }
+if(pinOK) openApp();
+document.getElementById('pingo').onclick=tryPin; document.getElementById('pin').addEventListener('keydown',function(e){ if(e.key==='Enter') tryPin(); });
+function tryPin(){ var v=document.getElementById('pin').value; if(v===String(window.S7_TEACHER_PIN)){ try{localStorage.setItem('s7teacher',v);}catch(e){} openApp(); } else toast('Wrong PIN'); }
+
+/* ---------- init ---------- */
+function init(){
+  var ps=document.getElementById('packsel');
+  S7.packList().forEach(function(id){ var p=S7.pack(id); var o=document.createElement('option'); o.value=id; o.textContent=p.title; ps.appendChild(o); });
+  var link=location.href.replace(/teacher\.html.*$/,'index.html'); document.getElementById('slink').textContent=link;
+  document.getElementById('copylink').onclick=function(){ navigator.clipboard.writeText(link).then(function(){toast('Link copied');}); };
+  document.getElementById('start').onclick=startSession;
+  document.getElementById('reset').onclick=function(){ if(!sid) return; if(confirm('Clear every student, board, answer and comment for this session?')) resetSession(); };
+  document.getElementById('fs').onclick=function(){ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
+  db.on('s7/current', function(cur){ if(cur && cur!==sid){ sid=cur; attach(); } if(!cur) renderNoSession(); });
+  document.querySelector('.ctl').addEventListener('click', onCtl);
+  document.getElementById('tiles').addEventListener('click', onTile);
+  wireFocus();
+}
+function renderNoSession(){ document.getElementById('tiles').innerHTML='<div class="card" style="grid-column:1/-1"><h2>No session running</h2><p class="muted" style="margin-top:6px">Pick the week and press Start session. Students who already have the page open will join automatically.</p></div>'; }
+function startSession(){
+  var id=document.getElementById('packsel').value; if(!id) return;
+  var newSid=id;
+  db.get('s7/sessions/'+newSid+'/meta').then(function(m){
+    var p=db.update('s7/sessions/'+newSid+'/meta',{pack:id, title:S7.pack(id).title, started:S7.now()});
+    if(!m) p=p.then(function(){ return db.set('s7/sessions/'+newSid+'/state',{mode:'lobby',q:1}); });
+    return p;
+  }).then(function(){ return db.set('s7/current', newSid); }).then(function(){ toast('Session started: '+S7.pack(id).title); });
+}
+function resetSession(){
+  db.update(base(),{students:null, work:null, ext:null, comments:null, state:{mode:'lobby',q:1}}).then(function(){ sel={}; toast('Session reset'); });
+}
+function attach(){
+  unsubs.forEach(function(u){u();}); unsubs=[];
+  unsubs.push(db.on(base()+'/meta', function(m){ meta=m; pack=m?S7.pack(m.pack):null; if(pack){ document.getElementById('packsel').value=m.pack; buildYdButtons(); } renderAll(); }));
+  unsubs.push(db.on(base()+'/state', function(s){ state=s||{mode:'lobby'}; renderAll(); }));
+  unsubs.push(db.on(base()+'/students', function(s){ students=s||{}; renderTiles(); }));
+  unsubs.push(db.on(base()+'/work', function(w){ work=w||{}; renderTiles(); paintFocus(); }));
+  unsubs.push(db.on(base()+'/ext', function(e){ exts=e||{}; renderTiles(); }));
+  unsubs.push(db.on(base()+'/comments', function(c){ comments=c||{}; renderTiles(); }));
+}
+function buildYdButtons(){
+  document.getElementById('ydbtns').innerHTML=pack.youdo.map(function(y){ return '<button class="btn small you" data-mode="youdo" data-q="'+y.n+'">You do '+y.n+'</button>'; }).join('');
+}
+function curKey(){ return state.mode==='youdo'?('y'+state.q):(state.mode==='grid'?'grid':null); }
+
+/* ---------- controls ---------- */
+function onCtl(e){
+  var b=e.target.closest('button'); if(!b||!sid) return;
+  if(b.dataset.mode){
+    var upd={mode:b.dataset.mode}; if(b.dataset.q) upd.q=+b.dataset.q;
+    db.update(base()+'/state',upd); return;
+  }
+  var act=b.dataset.act;
+  if(act==='reveal'){ var k='y'+state.q; var r=(state.reveal||{}); db.set(base()+'/state/reveal/'+k, !r[k]); }
+  if(act==='revealx'){ var kx='x'+state.q; var rx=(state.reveal||{}); db.set(base()+'/state/reveal/'+kx, !rx[kx]); }
+  if(act==='extsel'){ sendExt(Object.keys(sel).filter(function(u){return sel[u];})); }
+  if(act==='selcorrect'){ var k2='y'+state.q; sel={}; Object.keys(students).forEach(function(u){ var w=(work[u]||{})[k2]; if(w&&w.ok===true) sel[u]=true; }); renderTiles(); }
+  if(act==='selnone'){ sel={}; renderTiles(); }
+  if(act==='gridans'){ db.set(base()+'/state/gridAnswers', !state.gridAnswers); }
+  if(act==='gridsol'){ db.set(base()+'/state/gridSolutions', !state.gridSolutions); }
+}
+function sendExt(uids){
+  if(state.mode!=='youdo'){ toast('Extensions go with a You do'); return; }
+  if(!uids.length){ toast('Select some students first (tick the boxes)'); return; }
+  var upd={}; uids.forEach(function(u){ upd[u]={q:state.q, t:S7.now()}; });
+  db.update(base()+'/ext', upd).then(function(){ toast('Extension sent to '+uids.length); sel={}; renderTiles(); });
+}
+function renderAll(){
+  document.getElementById('modepill').textContent = state.mode==='youdo'?('You do '+state.q):(state.mode||'lobby');
+  document.querySelectorAll('.ctl [data-mode]').forEach(function(b){ b.classList.toggle('on', b.dataset.mode===state.mode && (!b.dataset.q || +b.dataset.q===state.q)); });
+  var mc=document.getElementById('modectl'), qp=document.getElementById('qpanel');
+  if(!pack){ mc.innerHTML=''; qp.style.display='none'; renderTiles(); return; }
+  var rev=state.reveal||{};
+  if(state.mode==='youdo'){
+    var item=pack.youdo.filter(function(y){return y.n===state.q;})[0];
+    mc.innerHTML='<span class="lbl">This question</span>'+
+      '<button class="btn small '+(rev['y'+state.q]?'gold':'go')+'" data-act="reveal">'+(rev['y'+state.q]?'Hide solution':'Reveal solution')+'</button>'+
+      '<span class="sep"></span><span class="lbl">Extension</span>'+
+      '<button class="btn small grey" data-act="selcorrect">Select all correct</button>'+
+      '<button class="btn small gold" data-act="extsel">Send extension to selected</button>'+
+      '<button class="btn small '+(rev['x'+state.q]?'gold':'grey')+'" data-act="revealx">'+(rev['x'+state.q]?'Hide ext solution':'Reveal ext solution')+'</button>'+
+      '<button class="btn small grey" data-act="selnone">Clear selection</button>';
+    if(item){ qp.style.display='grid'; qp.innerHTML='<div><div class="eyebrow you"><i></i>You do '+item.n+' · on every student screen'+(item.sub?' · '+esc(item.sub):'')+'</div><div class="q" style="font-size:16px">'+item.q+'</div><div class="ans">Answer: '+item.final+'</div>'+
+      (item.ext?'<div class="muted" style="margin-top:8px"><b>Extension:</b> '+item.ext.q+' <span style="color:#0E4A2E;font-weight:800">('+item.ext.final+')</span></div>':'')+'</div>'+(item.svg?'<div class="diag">'+item.svg+'</div>':''); S7.tex(qp); }
+  } else if(state.mode==='grid'){
+    mc.innerHTML='<span class="lbl">The twelve</span><button class="btn small '+(state.gridAnswers?'gold':'go')+'" data-act="gridans">'+(state.gridAnswers?'Hide answers':'Show answers')+'</button>'+
+      '<button class="btn small '+(state.gridSolutions?'gold':'grey')+'" data-act="gridsol">'+(state.gridSolutions?'Hide solutions':'Show worked solutions')+'</button>';
+    qp.style.display='grid'; qp.innerHTML='<div><div class="eyebrow"><i></i>The twelve · students tap a question to do it on a board</div><div class="q" style="font-size:14px">'+pack.grid.map(function(g){return '<b>Q'+g.n+'</b> '+g.a;}).join(' &nbsp;·&nbsp; ')+'</div></div>';
+  } else { mc.innerHTML=''; qp.style.display='none'; }
+  renderTiles();
+}
+
+/* ---------- tiles ---------- */
+function studentList(){ return Object.keys(students).filter(function(u){ return students[u] && !students[u].kicked; }).sort(function(a,b){ return (students[a].name||'').localeCompare(students[b].name||''); }); }
+function tileKey(u){
+  if(state.mode==='youdo'){ var e=exts[u]; var xk='x'+state.q; if(e&&e.q===state.q&&work[u]&&work[u][xk]) return xk; return 'y'+state.q; }
+  if(state.mode==='grid'){ var w=work[u]||{}; var best=null; Object.keys(w).forEach(function(k){ if(k[0]==='g'&&(!best||(w[k].t||0)>(w[best].t||0))) best=k; }); return best||'g1'; }
+  return null;
+}
+function renderTiles(){
+  if(!sid) return;
+  var list=studentList(), tiles=document.getElementById('tiles');
+  document.getElementById('count').textContent=list.length+' student'+(list.length===1?'':'s');
+  var now=S7.now(), nOk=0, nNo=0, nAns=0;
+  if(!list.length){ tiles.innerHTML='<div class="card" style="grid-column:1/-1"><h2>'+(meta?'Waiting for students':'No session running')+'</h2><p class="muted" style="margin-top:6px">Share the student link (bottom of the page). Names appear here as they join.</p></div>'; document.getElementById('stats').innerHTML=''; return; }
+  var have={}; [].forEach.call(tiles.querySelectorAll('.tile'),function(t){ have[t.dataset.u]=t; });
+  var frag=document.createDocumentFragment();
+  list.forEach(function(u){
+    var s=students[u], k=tileKey(u), w=k?((work[u]||{})[k]):null;
+    var ok=w?w.ok:null; if(ok===true)nOk++; if(ok===false)nNo++; if(w&&w.a)nAns++;
+    var away=(now-(s.seen||0))>75000;
+    var t=have[u]||document.createElement('div');
+    t.className='tile'+(ok===true?' ok':ok===false?' no':'')+(sel[u]?' sel':''); t.dataset.u=u;
+    var badges='';
+    if(exts[u]&&state.mode==='youdo'&&exts[u].q===state.q) badges+='<span class="badge">ext'+(k&&k[0]==='x'?' · working':'')+'</span>';
+    if(comments[u]&&comments[u].text) badges+='<span class="badge cm" title="'+esc(comments[u].text)+'">note</span>';
+    if(away) badges+='<span class="badge away">away</span>';
+    t.innerHTML='<div class="hd"><input type="checkbox" data-sel="'+u+'"'+(sel[u]?' checked':'')+'><span class="nm">'+esc(s.name)+'</span><span class="st '+(ok===true?'ok':ok===false?'no':'none')+'">'+(ok===true?'✓':ok===false?'✗':'·')+'</span></div>'+
+      '<canvas></canvas><div class="ft"><span class="a">'+(w&&w.a?esc(w.a):'')+'</span><span style="flex:1"></span>'+badges+'</div><button class="kick" data-kick="'+u+'" title="Remove this student">✕</button>';
+    frag.appendChild(t);
+    var cv=t.querySelector('canvas'); requestAnimationFrame(function(){ S7.paint(cv, w?w.s:[]); });
+  });
+  tiles.innerHTML=''; tiles.appendChild(frag);
+  var pct=list.length?Math.round(nOk/list.length*100):0;
+  document.getElementById('stats').innerHTML='<span><b>'+list.length+'</b> in</span><span><b>'+nAns+'</b> answered</span><span><span class="dot" style="background:var(--ok)"></span><b>'+nOk+'</b> correct ('+pct+'%)</span><span><span class="dot" style="background:var(--red)"></span><b>'+nNo+'</b> wrong</span><span><b>'+Object.keys(sel).filter(function(u){return sel[u];}).length+'</b> selected</span>';
+}
+function onTile(e){
+  var t=e.target;
+  if(t.dataset.sel){ sel[t.dataset.sel]=t.checked; renderTiles(); return; }
+  if(t.dataset.kick){ kick(t.dataset.kick); return; }
+  var tile=t.closest('.tile'); if(tile) openFocus(tile.dataset.u);
+}
+function kick(u){
+  var s=students[u]; if(!confirm('Remove '+(s?s.name:'this student')+'? They can rejoin with a proper name.')) return;
+  db.update(base(),{['students/'+u+'/kicked']:true, ['work/'+u]:null, ['ext/'+u]:null, ['comments/'+u]:null}).then(function(){ toast('Removed'); });
+}
+
+/* ---------- focus ---------- */
+var fboard=null;
+function wireFocus(){
+  var f=document.getElementById('focus');
+  fboard=S7.Board(document.getElementById('fcv'),{readonly:true,grid:true});
+  document.getElementById('fclose').onclick=closeFocus; f.addEventListener('click',function(e){ if(e.target===f) closeFocus(); });
+  document.getElementById('fprev').onclick=function(){ step(-1); }; document.getElementById('fnext').onclick=function(){ step(1); };
+  document.getElementById('fsend').onclick=function(){ var t=document.getElementById('ftext').value.trim(); if(!t||!focusUid) return; db.set(base()+'/comments/'+focusUid,{text:t,t:S7.now()}).then(function(){ toast('Sent'); document.getElementById('ftext').value=''; }); };
+  document.getElementById('fclear').onclick=function(){ if(focusUid) db.remove(base()+'/comments/'+focusUid); };
+  document.getElementById('fext').onclick=function(){ if(focusUid) sendExt([focusUid]); };
+  document.getElementById('fkick').onclick=function(){ if(focusUid){ kick(focusUid); closeFocus(); } };
+  document.getElementById('fquick').innerHTML=QUICK.map(function(q){return '<button data-q="'+esc(q)+'">'+esc(q)+'</button>';}).join('');
+  document.getElementById('fquick').addEventListener('click',function(e){ var b=e.target.closest('button'); if(b){ document.getElementById('ftext').value=b.dataset.q; } });
+  document.addEventListener('keydown',function(e){ if(!focusUid) return; if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT') return; if(e.key==='Escape') closeFocus(); if(e.key==='ArrowRight') step(1); if(e.key==='ArrowLeft') step(-1); });
+}
+function step(d){ var l=studentList(); var i=l.indexOf(focusUid); if(i<0) return; openFocus(l[(i+d+l.length)%l.length]); }
+function openFocus(u){ focusUid=u; document.getElementById('focus').classList.add('show'); paintFocus(); setTimeout(paintFocus,50); }
+function closeFocus(){ focusUid=null; document.getElementById('focus').classList.remove('show'); }
+function paintFocus(){
+  if(!focusUid) return; var s=students[focusUid]; if(!s){ closeFocus(); return; }
+  var k=tileKey(focusUid), w=k?((work[focusUid]||{})[k]):null;
+  document.getElementById('fname').textContent=s.name;
+  document.getElementById('fwhich').textContent = k? (k[0]==='y'?'You do '+k.slice(1):k[0]==='x'?'Extension '+k.slice(1):'Grid Q'+k.slice(1)) : 'Lobby';
+  document.getElementById('fans').innerHTML = w&&w.a ? ('Answer: '+esc(w.a)+' '+(w.ok===true?'<span style="color:var(--ok)">✓</span>':w.ok===false?'<span style="color:var(--red)">✗</span>':'')) : '<span class="muted">no answer yet</span>';
+  document.getElementById('fstate').textContent = w&&w.ok===true?'correct':w&&w.ok===false?'wrong':'working';
+  fboard.setStrokes(w?w.s:[]);
+}
+})();
+</script>
+</body>
+</html>
