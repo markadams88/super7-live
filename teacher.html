@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Super 7 Live · Teacher</title>
+<title>Super 7 Live teacher</title>
 <link rel="stylesheet" href="vendor/katex.css">
 <link rel="stylesheet" href="app.css">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -16,13 +16,13 @@
 <script src="shared.js"></script>
 </head>
 <body>
-<div id="gate" class="gate"><div class="card"><div class="eyebrow"><i></i>Super 7 Live · teacher</div><h1>Teacher PIN</h1>
+<div id="gate" class="gate"><div class="card"><div class="eyebrow"><i></i>Super 7 Live teacher</div><h1>Teacher PIN</h1>
   <input id="pin" type="password" inputmode="numeric" placeholder="PIN" autocomplete="off"><button class="btn" id="pingo" style="width:100%">Open the teacher screen</button>
   <p class="muted" style="margin-top:10px">The PIN is set in firebase-config.js.</p></div></div>
 
 <div id="app" style="display:none">
 <div class="top">
-  <span class="flash"><b>7</b>Super 7 Live · teacher</span>
+  <span class="flash"><b>7</b>Super 7 Live teacher</span>
   <select id="packsel"></select>
   <button class="btn small gold" id="start">Start session</button>
   <button class="btn small grey" id="reset" title="Clears every student, board and answer">Reset</button>
@@ -44,9 +44,9 @@
 <div class="stats" id="stats"></div>
 <div class="qpanel" id="qpanel" style="display:none"></div>
 <div class="tiles" id="tiles"></div>
-<div class="wrap" id="linkrow" style="padding-top:0"><div class="linkbox"><div id="qrsmall" style="width:96px;height:96px;background:#fff;border:1px solid rgba(97,0,100,.2);border-radius:8px;padding:6px"></div><div><span class="lbl" style="font-size:11.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#6b6470">Student link</span><br><code id="slink"></code> <button class="btn small grey" id="copylink">Copy</button> <button class="btn small gold" id="showjoin">Show link and QR to the class</button></div></div></div>
+<div class="wrap" id="linkrow" style="padding-top:0"><div class="linkbox"><div id="qrsmall" style="width:96px;height:96px;background:#fff;border:1px solid rgba(97,0,100,.2);border-radius:8px;padding:6px"></div><div><span class="lbl" style="font-size:12.5px;font-weight:700;color:#6b6470">Student link</span><br><code id="slink"></code> <button class="btn small grey" id="copylink">Copy</button> <button class="btn small gold" id="showjoin">Show link and QR to the class</button></div></div></div>
 <div id="joinover" style="position:fixed;inset:0;z-index:45;background:#fff;display:none;align-items:center;justify-content:center;flex-direction:column;gap:18px;text-align:center;padding:4vh 4vw;cursor:pointer">
-  <div class="flash" style="display:inline-flex;align-items:center;gap:10px;background:#F5C518;color:#3A0039;border-radius:999px;padding:8px 22px 8px 10px;font-weight:800;font-size:22px;letter-spacing:.06em;text-transform:uppercase"><b style="width:38px;height:38px;border-radius:50%;background:#3A0039;color:#F5C518;display:flex;align-items:center;justify-content:center;font-size:24px">7</b>Super 7 Live</div>
+  <div class="flash" style="display:inline-flex;align-items:center;gap:10px;background:#F93E26;color:#fff;border-radius:999px;padding:8px 22px 8px 10px;font-weight:700;font-size:22px"><b style="width:38px;height:38px;border-radius:50%;background:#fff;color:#F93E26;display:flex;align-items:center;justify-content:center;font-size:24px">7</b>Super 7 Live</div>
   <div style="font-size:clamp(22px,3.2vw,44px);font-weight:800;color:var(--deep)">Scan, or type the link</div>
   <div id="qrbig" style="width:min(52vh,420px);height:min(52vh,420px)"></div>
   <div id="joinlink" style="font-size:clamp(20px,2.6vw,38px);font-weight:800;color:var(--ink);word-break:break-all"></div>
@@ -58,7 +58,7 @@
   <div class="hd"><h2 id="fname">Student</h2><span class="pill" id="fstate" style="background:#F3E5F5;color:var(--deep);border-radius:999px;padding:4px 12px;font-weight:800;font-size:13px"></span>
     <button class="btn small grey" id="fprev">‹ prev</button><button class="btn small grey" id="fnext">next ›</button>
     <button class="btn small gold" id="fext">Send extension</button><button class="btn small red" id="fkick">Remove</button><button class="btn small grey" id="fclose">✕</button></div>
-  <div class="row" style="margin:0 0 8px"><span class="lbl" style="font-size:11.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#6b6470" id="fwhich">You do</span><span id="fans" style="font-weight:800"></span></div>
+  <div class="row" style="margin:0 0 8px"><span class="lbl" style="font-size:12.5px;font-weight:700;color:#6b6470" id="fwhich">You do</span><span id="fans" style="font-weight:800"></span></div>
   <canvas class="fcv" id="fcv"></canvas>
   <div class="row"><textarea id="ftext" placeholder="Comment to this student (they see it straight away)"></textarea><button class="btn" id="fsend">Send</button><button class="btn grey" id="fclear">Clear their note</button></div>
   <div class="quick" id="fquick"></div>
@@ -169,12 +169,12 @@ function renderAll(){
       '<button class="btn small gold" data-act="extsel">Send extension to selected</button>'+
       '<button class="btn small '+(rev['x'+state.q]?'gold':'grey')+'" data-act="revealx">'+(rev['x'+state.q]?'Hide ext solution':'Reveal ext solution')+'</button>'+
       '<button class="btn small grey" data-act="selnone">Clear selection</button>';
-    if(item){ qp.style.display='grid'; qp.innerHTML='<div><div class="eyebrow you"><i></i>You do '+item.n+' · on every student screen'+(item.sub?' · '+esc(item.sub):'')+'</div><div class="q" style="font-size:16px">'+item.q+'</div><div class="ans">Answer: '+item.final+'</div>'+
+    if(item){ qp.style.display='grid'; qp.innerHTML='<div><div class="eyebrow you"><i></i>You do '+item.n+', on every student screen'+(item.sub?' ('+esc(item.sub)+')':'')+'</div><div class="q" style="font-size:16px">'+item.q+'</div><div class="ans">Answer: '+item.final+'</div>'+
       (item.ext?'<div class="muted" style="margin-top:8px"><b>Extension:</b> '+item.ext.q+' <span style="color:#0E4A2E;font-weight:800">('+item.ext.final+')</span></div>':'')+'</div>'+(item.svg?'<div class="diag">'+item.svg+'</div>':''); S7.tex(qp); }
   } else if(state.mode==='grid'){
     mc.innerHTML='<span class="lbl">The twelve</span><button class="btn small '+(state.gridAnswers?'gold':'go')+'" data-act="gridans">'+(state.gridAnswers?'Hide answers':'Show answers')+'</button>'+
       '<button class="btn small '+(state.gridSolutions?'gold':'grey')+'" data-act="gridsol">'+(state.gridSolutions?'Hide solutions':'Show worked solutions')+'</button>';
-    qp.style.display='grid'; qp.innerHTML='<div><div class="eyebrow"><i></i>The twelve · students tap a question to do it on a board</div><div class="q" style="font-size:14px">'+pack.grid.map(function(g){return '<b>Q'+g.n+'</b> '+g.a;}).join(' &nbsp;·&nbsp; ')+'</div></div>';
+    qp.style.display='grid'; qp.innerHTML='<div><div class="eyebrow"><i></i>The twelve: students tap a question to do it on a board</div><div class="q" style="font-size:14px">'+pack.grid.map(function(g){return '<b>Q'+g.n+'</b> '+g.a;}).join(' &nbsp; ')+'</div></div>';
   } else { mc.innerHTML=''; qp.style.display='none'; }
   renderTiles();
 }
@@ -201,7 +201,7 @@ function renderTiles(){
     var t=have[u]||document.createElement('div');
     t.className='tile'+(ok===true?' ok':ok===false?' no':'')+(sel[u]?' sel':''); t.dataset.u=u;
     var badges='';
-    if(exts[u]&&state.mode==='youdo'&&exts[u].q===state.q) badges+='<span class="badge">ext'+(k&&k[0]==='x'?' · working':'')+'</span>';
+    if(exts[u]&&state.mode==='youdo'&&exts[u].q===state.q) badges+='<span class="badge">ext'+(k&&k[0]==='x'?', working':'')+'</span>';
     if(comments[u]&&comments[u].text) badges+='<span class="badge cm" title="'+esc(comments[u].text)+'">note</span>';
     if(away) badges+='<span class="badge away">away</span>';
     t.innerHTML='<div class="hd"><input type="checkbox" data-sel="'+u+'"'+(sel[u]?' checked':'')+'><span class="nm">'+esc(s.name)+'</span><span class="st '+(ok===true?'ok':ok===false?'no':'none')+'">'+(ok===true?'✓':ok===false?'✗':'·')+'</span></div>'+

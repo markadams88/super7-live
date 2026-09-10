@@ -1,9 +1,9 @@
-/* Super 7 Live · shared styles (AUMS palette) */
+/* Super 7 Live shared styles (AUMS palette) */
 :root{--deep:#610064;--bright:#920088;--orange:#F93E26;--pink:#D30063;--blue:#1E5AAF;--gold:#B8860B;--ok:#1E8E5A;--red:#C0392B;
   --lpurple:#F3E5F5;--paper:#FBF9FC;--ink:#19151C;--you:#D2551F}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Arial,sans-serif;color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased}
+body{font-family:'Aktiv Grotesk','Segoe UI',Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit}
 b,strong{font-weight:700}
 .katex{font-size:1.05em}
@@ -11,8 +11,8 @@ a{color:var(--deep)}
 
 /* top bar */
 .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;padding:8px 14px;background:linear-gradient(120deg,#3A0039,var(--deep));color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.18)}
-.top .flash{display:inline-flex;align-items:center;gap:8px;background:#F5C518;color:#3A0039;border-radius:999px;padding:4px 12px 4px 4px;font-weight:800;font-size:13px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
-.top .flash b{width:24px;height:24px;border-radius:50%;background:#3A0039;color:#F5C518;display:flex;align-items:center;justify-content:center;font-size:15px}
+.top .flash{display:inline-flex;align-items:center;gap:8px;background:#F93E26;color:#fff;border-radius:999px;padding:4px 12px 4px 4px;font-weight:700;font-size:13px;white-space:nowrap}
+.top .flash b{width:24px;height:24px;border-radius:50%;background:#fff;color:#F93E26;display:flex;align-items:center;justify-content:center;font-size:15px}
 .top .ttl{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .top .sp{flex:1}
 .top .pill{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700;white-space:nowrap}
@@ -36,13 +36,13 @@ a{color:var(--deep)}
 
 /* cards */
 .card{background:#fff;border:1px solid rgba(97,0,100,.18);border-radius:14px;padding:16px 18px;box-shadow:0 6px 20px rgba(97,0,100,.06)}
-.eyebrow{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--bright);display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.eyebrow{font-size:13px;font-weight:700;color:var(--bright);display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .eyebrow i{width:9px;height:9px;border-radius:50%;background:var(--orange);display:inline-block}
 .eyebrow.you{color:var(--you)}
 h1{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--deep);line-height:1.1}
 h2{font-size:20px;font-weight:800;color:var(--deep);letter-spacing:-.01em}
 .q{font-size:18px;line-height:1.45}
-.q .sub{display:block;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
+.q .sub{display:block;font-size:12.5px;font-weight:700;color:#8a6a00;margin-bottom:4px}
 .qrow{display:grid;grid-template-columns:1fr 240px;gap:14px;align-items:start}
 .qrow .diag svg{width:100%;height:auto;max-height:200px}
 @media(max-width:640px){.qrow{grid-template-columns:1fr}.qrow .diag{max-width:260px;margin:0 auto}}
@@ -69,15 +69,15 @@ h2{font-size:20px;font-weight:800;color:var(--deep);letter-spacing:-.01em}
 
 /* solution */
 .sol{margin-top:14px;border:1px solid rgba(30,142,90,.4);border-radius:12px;padding:12px 16px;background:#fff}
-.sol .lab{font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--ok);margin-bottom:6px}
+.sol .lab{font-size:13px;font-weight:700;color:var(--ok);margin-bottom:6px}
 .step{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px dashed rgba(97,0,100,.18);font-size:16px}
-.step .t{font-size:11.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--gold)}
+.step .t{font-size:12.5px;font-weight:700;color:#8a6a00}
 .final{margin-top:8px;background:rgba(30,142,90,.1);border-left:5px solid var(--ok);border-radius:6px;padding:8px 12px;font-size:17px;color:#0E4A2E}
 @media(max-width:520px){.step{grid-template-columns:1fr}}
 
 /* extension */
 .ext{margin-top:16px;border:2px solid var(--gold);border-radius:14px;padding:14px 16px;background:#FFF8E1}
-.ext .lab{font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#8a6a00;margin-bottom:6px}
+.ext .lab{font-size:13px;font-weight:700;color:#8a6a00;margin-bottom:6px}
 .ext .msg{font-size:15px;line-height:1.45;margin-bottom:10px;color:#4a3a00}
 .ext .msg b{color:#8a6a00}
 
@@ -85,7 +85,7 @@ h2{font-size:20px;font-weight:800;color:var(--deep);letter-spacing:-.01em}
 .note{position:fixed;left:50%;transform:translateX(-50%);top:62px;z-index:30;max-width:min(92vw,560px);background:#fff;border:2px solid var(--pink);border-radius:14px;padding:12px 16px;
   box-shadow:0 12px 40px rgba(0,0,0,.25);display:none;gap:12px;align-items:flex-start;font-size:16px}
 .note.show{display:flex}
-.note .who{font-size:11.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--pink);display:block;margin-bottom:2px}
+.note .who{font-size:12.5px;font-weight:700;color:var(--pink);display:block;margin-bottom:2px}
 .note button{margin-left:auto}
 
 /* toast */
@@ -101,10 +101,12 @@ h2{font-size:20px;font-weight:800;color:var(--deep);letter-spacing:-.01em}
 
 /* grid page */
 .ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:12px}
-.gcell{background:#fff;border:1.5px solid rgba(97,0,100,.22);border-radius:12px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:6px;min-height:120px;position:relative}
+.gcell{background:#fff;border:1.5px solid rgba(97,0,100,.22);border-radius:12px;padding:10px 12px 10px;cursor:pointer;display:flex;flex-direction:column;gap:6px;min-height:120px;position:relative}
 .gcell:hover{border-color:var(--bright)}
-.gcell .n{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--pink)}
-.gcell .t{font-size:13.5px;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical}
+.gcell .n{font-size:13px;font-weight:700;color:var(--pink)}
+.gcell .t{font-size:13.5px;line-height:1.4}
+.gcell .d{margin-top:6px;display:flex;justify-content:center}
+.gcell .d svg{max-height:90px;width:auto;max-width:100%}
 .gcell .st{position:absolute;top:8px;right:10px;font-size:18px}
 .gcell.done{border-color:var(--ok);background:rgba(30,142,90,.06)}
 .gcell.wrong{border-color:var(--red)}
@@ -113,7 +115,7 @@ h2{font-size:20px;font-weight:800;color:var(--deep);letter-spacing:-.01em}
 /* teacher */
 .ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;background:#fff;border-bottom:1px solid rgba(97,0,100,.15);position:sticky;top:50px;z-index:15}
 .ctl .sep{width:1px;height:26px;background:rgba(97,0,100,.2);margin:0 4px}
-.ctl .lbl{font-size:11.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#6b6470}
+.ctl .lbl{font-size:12.5px;font-weight:700;color:#6b6470}
 .stats{display:flex;gap:14px;padding:8px 14px;font-size:13px;color:#4a4550;flex-wrap:wrap;align-items:center}
 .stats b{color:var(--deep);font-size:16px}
 .stats .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
@@ -130,7 +132,7 @@ h2{font-size:20px;font-weight:800;color:var(--deep);letter-spacing:-.01em}
 .tile canvas{width:100%;height:105px;border:1px solid rgba(97,0,100,.15);border-radius:8px;display:block;background:#fff}
 .tile .ft{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:#6b6470;min-height:18px}
 .tile .ft .a{font-weight:800;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tile .badge{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:2px 7px;background:#FFF3C4;color:#7a5b00;border:1px solid #E7C65A}
+.tile .badge{font-size:11px;font-weight:700;border-radius:999px;padding:2px 7px;background:#FFF3C4;color:#7a5b00;border:1px solid #E7C65A}
 .tile .badge.cm{background:#FCE4EC;color:#8a1d4d;border-color:#F0A9C4}
 .tile .badge.away{background:#eee;color:#666;border-color:#ccc}
 .tile .kick{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;border:0;background:#EDE6F0;color:#7a1f16;font-weight:800;cursor:pointer;font-size:12px;opacity:0}

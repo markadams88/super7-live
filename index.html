@@ -17,9 +17,9 @@
 <body>
 <div class="top">
   <span class="flash"><b>7</b>Super 7 Live</span>
-  <span class="ttl" id="ttl">Free online GCSE maths · AUMS</span>
+  <span class="ttl" id="ttl">Free online GCSE maths from AUMS</span>
   <span class="sp"></span>
-  <span class="pill" id="who" style="display:none"></span>
+  <span class="pill" id="who" style="display:none;cursor:pointer" title="Not you? Click to change your name"></span>
   <span class="pill live" id="state">not started</span>
 </div>
 <div id="demo" class="demo" style="display:none">Local demo mode: this browser only. Add the Firebase config to go live.</div>
@@ -97,6 +97,9 @@ function showNote(c){
   try{ navigator.vibrate && navigator.vibrate(80); }catch(e){}
 }
 document.getElementById('noteok').onclick=function(){ document.getElementById('note').classList.remove('show'); };
+function changeName(){ if(sid) db.remove(base()+'/students/'+uid); try{localStorage.removeItem('s7name');localStorage.removeItem('s7uid');}catch(e){} location.reload(); }
+document.getElementById('who').onclick=changeName;
+document.addEventListener('click',function(e){ if(e.target && e.target.id==='chgname'){ e.preventDefault(); changeName(); } });
 
 /* ---------- 3. render by mode ---------- */
 function render(){
@@ -114,7 +117,8 @@ function render(){
 function renderLobby(){
   statePill('waiting');
   main.innerHTML='<div class="center"><div class="card"><div class="eyebrow"><i></i>'+S7.esc(pack.title)+'</div><h1>You are in, '+S7.esc(name)+'</h1>'+
-    '<p class="muted" style="margin-top:10px">Watch the Teams screen. When Mr Adams says "You do", the question appears here. Write your working on the board with a finger, stylus or mouse, then type your answer in the box.</p></div></div>';
+    '<p class="muted" style="margin-top:10px">Watch the Teams screen. When Mr Adams says "You do", the question appears here. Write your working on the board with a finger, stylus or mouse, then type your answer in the box.</p>'+
+    '<p class="muted" style="margin-top:12px">Not '+S7.esc(name)+'? <a href="#" id="chgname">Change name</a></p></div></div>';
 }
 function qCard(item, keyPrefix, eyebrowText, cls){
   var k=keyPrefix;
@@ -135,7 +139,7 @@ function renderYoudo(q){
   statePill('You do '+q);
   var item=pack.youdo.filter(function(y){return y.n===q;})[0];
   if(!item){ main.innerHTML='<div class="center"><div class="card"><h1>Waiting…</h1></div></div>'; return; }
-  var html='<div class="wrap">'+qCard(item,'y'+q,'You do '+q+' · your go');
+  var html='<div class="wrap">'+qCard(item,'y'+q,'You do '+q);
   html+='<div id="extslot"></div></div>';
   main.innerHTML=html;
   wireCard('y'+q, item.answer);
@@ -143,25 +147,25 @@ function renderYoudo(q){
 function renderExt(q){
   var item=pack.youdo.filter(function(y){return y.n===q;})[0]; if(!item||!item.ext) return;
   var slot=document.getElementById('extslot'); if(!slot||document.getElementById('card-x'+q)) return;
-  slot.innerHTML='<div class="ext"><div class="lab">Extension · just for you</div><div class="msg"><b>Great, you have got that.</b> Have a little go at this extension before we move on. If you do not finish it, screenshot it if you want; we will not go through these together.</div>'+
-    qCard(item.ext,'x'+q,'Extension · You do '+q)+'</div>';
+  slot.innerHTML='<div class="ext"><div class="lab">Extension, just for you</div><div class="msg"><b>Great, you have got that.</b> Have a little go at this extension before we move on. If you do not finish it, screenshot it if you want; we will not go through these together.</div>'+
+    qCard(item.ext,'x'+q,'Extension for You do '+q)+'</div>';
   wireCard('x'+q, item.ext.answer);
   S7.tex(slot);
   document.getElementById('card-x'+q).scrollIntoView({behavior:'smooth',block:'start'});
 }
 function renderGrid(){
   statePill('the twelve');
-  var html='<div class="wrap"><div class="card"><div class="eyebrow"><i></i>'+S7.esc(pack.title)+' · the twelve</div><h1>Your twelve for this week</h1>'+
+  var html='<div class="wrap"><div class="card"><div class="eyebrow"><i></i>'+S7.esc(pack.title)+'</div><h1>Your twelve for this week</h1>'+
     '<p class="muted" style="margin-top:6px">Tap a question to open it with a board. Answers and worked solutions unlock when Mr Adams releases them. Your ticks are saved on this device.</p>'+
     '<div class="ggrid" id="ggrid">'+pack.grid.map(function(g){
-      return '<div class="gcell" data-g="'+g.n+'" id="gc-'+g.n+'"><div class="n">Q'+g.n+(g.marks?' · '+g.marks+' mark'+(g.marks>1?'s':''):'')+'</div><div class="t">'+g.q+'</div><span class="st" id="gst-'+g.n+'"></span><div class="ans" id="ga-'+g.n+'" style="display:none"></div></div>';
+      return '<div class="gcell" data-g="'+g.n+'" id="gc-'+g.n+'"><div class="n">Question '+g.n+(g.marks?' ('+g.marks+' mark'+(g.marks>1?'s':'')+')':'')+'</div><div class="t">'+g.q+'</div>'+(g.svg?'<div class="d">'+g.svg+'</div>':'')+'<span class="st" id="gst-'+g.n+'"></span><div class="ans" id="ga-'+g.n+'" style="display:none"></div></div>';
     }).join('')+'</div></div><div id="gopen"></div></div>';
-  main.innerHTML=html;
+  main.innerHTML=html; S7.tex(document.getElementById('ggrid'));
   document.getElementById('ggrid').addEventListener('click',function(e){ var c=e.target.closest('.gcell'); if(c) openGridQ(+c.dataset.g); });
 }
 function openGridQ(n){
   var g=pack.grid[n-1]; var slot=document.getElementById('gopen');
-  slot.innerHTML=qCard(g,'g'+n,'Question '+n+' of 12'+(g.marks?' · '+g.marks+' marks':''));
+  slot.innerHTML=qCard(g,'g'+n,'Question '+n+' of 12'+(g.marks?' ('+g.marks+' marks)':''));
   var b=slot.querySelector('.card'); b.insertAdjacentHTML('afterbegin','<button class="btn small grey" style="float:right" id="gclose">Close</button>');
   document.getElementById('gclose').onclick=function(){ slot.innerHTML=''; };
   wireCard('g'+n, g.answer); S7.tex(slot); refreshDynamic();
