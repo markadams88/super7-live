@@ -43,7 +43,7 @@ if(db.kind==='local') document.getElementById('demo').style.display='block';
 
 var sid=null, pack=null, state=null, name=null;
 var unsubs=[], perStudent=[];
-var board=null, extBoard=null;
+var board=null, extBoard=null, boardTimer=null;
 var shown={mode:null,key:null,reveal:null,gridAns:null,gridSol:null};
 var mine={};              /* {key:{v,c,x}} what I have answered this session */
 var onExt=false;
@@ -99,7 +99,7 @@ function register(){
   /* the only three listeners this page ever holds */
   perStudent.push(db.on(base()+'/state', function(s){ state=s||{mode:'lobby'}; render(); }));
   perStudent.push(db.on(base()+'/msg/'+uid, function(m){ if(m&&m.t) showNote(m.t); }));
-  perStudent.push(db.on(base()+'/req/'+uid, function(r){ if(r) sendBoard(r); }));
+  perStudent.push(db.on(base()+'/req/'+uid, function(r){ if(r) sendBoard(r); else stopBoard(); }));
 }
 
 /* ---------- a note from the teacher ---------- */
@@ -107,17 +107,22 @@ var noteEl=document.getElementById('note');
 document.getElementById('noteok').onclick=function(){ noteEl.classList.remove('show'); db.remove(base()+'/msg/'+uid); };
 function showNote(t){ document.getElementById('notetext').textContent=t; noteEl.classList.add('show'); }
 
-/* ---------- the teacher asked to see my board ---------- */
+/* ---------- the teacher asked to see my board ----------
+   Keeps sending while the teacher has this student open. It stops when the
+   teacher closes the panel (which clears req), when the question changes, or
+   after a long backstop in case a teacher tab dies with the panel open. */
+function stopBoard(){ if(boardTimer){ clearInterval(boardTimer); boardTimer=null; } }
 function sendBoard(key){
-  var b=(String(key).slice(-1)==='x')?extBoard:board;
-  db.set(base()+'/bd/'+uid, b?b.strokes:[]);
-  /* keep it fresh while they are looking, then stop */
-  var n=0, h=setInterval(function(){
-    n++; var bb=(String(key).slice(-1)==='x')?extBoard:board;
-    db.set(base()+'/bd/'+uid, bb?bb.strokes:[]);
-    if(n>40){ clearInterval(h); }
-  }, 1500);
-  db.on(base()+'/req/'+uid, function(r){ if(!r){ clearInterval(h); } });
+  stopBoard();
+  var n=0;
+  function push(){
+    var b=(String(key).slice(-1)==='x')?extBoard:board;
+    var st=(b&&b.strokes&&b.strokes.length)?b.strokes:null;
+    db.set(base()+'/bd/'+uid, st);
+    if(++n>600) stopBoard();        /* 12 minutes, a backstop, not a timeout */
+  }
+  push();
+  boardTimer=setInterval(push, 1200);
 }
 
 /* ---------- 3. render whatever the teacher is showing ---------- */
@@ -125,6 +130,7 @@ function render(){
   if(!state){ return; }
   var m=state.mode||'lobby';
   var same = (m===shown.mode && state.key===shown.key);
+  if(!same) stopBoard();
   statePill(m==='lobby'?'waiting':(m==='grid'?'your twelve':(m==='done'?'finished':'question '+state.key)));
   if(m==='lobby'){ if(!same){ shown={mode:m,key:null}; renderLobby(); } return; }
   if(m==='done'){ if(!same){ shown={mode:m,key:null}; renderDone(); } return; }
