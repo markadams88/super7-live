@@ -3,13 +3,22 @@
     ".read": false,
     ".write": false,
     "s7": {
-      ".read": true,
-      ".write": true,
+      "current": { ".read": true, ".write": true },
       "sessions": {
         "$sid": {
-          "students": { "$uid": { "name": { ".validate": "newData.isString() && newData.val().length <= 24" } } },
-          "comments": { "$uid": { "text": { ".validate": "newData.isString() && newData.val().length <= 300" } } },
-          "work": { "$uid": { "$key": { "a": { ".validate": "newData.isString() && newData.val().length <= 40" } } } }
+          ".read": true,
+          ".write": true,
+          "state": { ".validate": "newData.hasChildren(['mode'])" },
+          "st":  { "$uid": { "n": { ".validate": "newData.isString() && newData.val().length <= 24" } } },
+          "an":  { "$key": { "$uid": {
+                    "v":  { ".validate": "newData.isString() && newData.val().length <= 40" },
+                    "xv": { ".validate": "newData.isString() && newData.val().length <= 40" },
+                    "n":  { ".validate": "newData.isString() && newData.val().length <= 24" },
+                    "c":  { ".validate": "newData.isNumber()" },
+                    "x":  { ".validate": "newData.isNumber()" } } } },
+          "msg": { "$uid": { "t": { ".validate": "newData.isString() && newData.val().length <= 120" } } },
+          "req": { "$uid": { ".validate": "newData.isNumber() || newData.isString()" } },
+          "bd":  { "$uid": { ".validate": "newData.hasChildren() || newData.val() == null" } }
         }
       }
     }

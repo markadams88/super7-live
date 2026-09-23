@@ -1,39 +1,101 @@
 # Super 7 Live
 
-The live student app for the Super 7 sessions. One copy serves every week: you pick the week's question pack from the menu, students open one fixed link.
+**Live addresses**
+- Student link: https://markadams88.github.io/super7-live/index.html
+- Teacher screen: https://markadams88.github.io/super7-live/teacher.html
+- Connection test: https://markadams88.github.io/super7-live/loadtest.html
+- Code: https://github.com/markadams88/super7-live (GitHub Pages from main, root)
+- Database: Firebase project `aums-super7`, Realtime Database in Belgium (europe-west1)
+- Teacher PIN: 7777 (change it in firebase-config.js and re-upload that file)
+
+To change any file: open the repository on GitHub, Add file > Upload files, drop the new
+copy on top (same name), Commit. Pages redeploys in about a minute; hard-refresh with
+Ctrl+Shift+R to see it.
+
+## Built for 500 at once
+
+The original version showed every student as a live whiteboard tile. That is lovely with
+30 and impossible with 500: the teacher's browser would be receiving every stroke from
+every student, continuously. The rebuild (September 2026) changes three things.
+
+**Students send almost nothing.** Each student's page subscribes to exactly three small
+nodes: the session state, a note addressed to them, and a request for their board. It
+never subscribes to a list of other students. A whole You do costs about **80 bytes**
+per student, measured, not estimated.
+
+**Boards stay on the student's own device** until you ask for one. Click a name on the
+teacher screen and that one student starts sending their board, live, until you close
+the panel. Nothing is transmitted the rest of the time.
+
+**Everything uses child listeners.** A `value` listener on a node with 500 children
+re-sends all 500 every time one changes. `child_added` and `child_changed` send one
+child. That is the difference between a teacher screen that keeps up and one that does not.
+
+Measured on a simulated full room: 500 students appeared on the teacher screen in
+**0.4 seconds**, the tally and the wrong-answer groups were correct, searching for a name
+took **150 ms**, and the page held **60 fps** with a worst frame of 21 ms.
+
+## The one thing that must be done before a big session
+
+Firebase's free **Spark** plan allows **100 simultaneous connections**. Student 101
+simply cannot connect. The **Blaze** plan raises that to **200,000** and is pay as you go.
+
+At the data volumes above, a 500-student session moves roughly 40 MB of traffic in total,
+and Blaze includes 10 GB of downloads a month before anything is charged, so a full term
+of Super 7 should sit inside the free allowance. Set a budget alert anyway:
+Firebase console > Usage and billing > Details and settings > Modify budget alerts.
+
+Open `loadtest.html`, put in 500, and press Run. If it stalls at about 100 the project is
+still on Spark. If all 500 connect you are fine.
 
 ## What it does
 
-**Students** (`index.html`) open the link on a phone, tablet or laptop, type a first name and initial and wait. When you push a You do, the question appears with a writing board (finger, stylus or mouse), an answer box and an instant tick or cross. A comment from you pops up on their screen. If you send them the extension they get a second board underneath with the "great, have a go at this before we move on" message. On the grid page they can open any of the twelve, do it on a board, and see answers and worked solutions once you release them.
+**Students** (`index.html`) open the link on a phone, tablet or laptop, type a first name
+and initial, and wait. When you push a You do, the question appears with a writing board,
+an answer box and an instant tick or cross. **A correct answer opens the extension
+straight away**, with no action from you: one harder question, then a line telling them to
+wait for the next one, so the class stays together. On the grid page they can open any of
+the twelve, work on a board, and see answers and worked solutions once you release them.
 
-**You** (`teacher.html`, PIN protected) see every student as a live tile: name, their board, their typed answer and a tick or cross. Click a tile to open that student full size, type a comment (or tap a quick one), send the extension, or remove them. Tick several tiles, or press "Select all correct", then "Send extension to selected". Reveal the worked solution to everyone with one button. Silly names: hover a tile and press the cross, or use Remove in the focus view. They can rejoin with a proper name.
+**You** (`teacher.html`, PIN protected) see a live tally: how many are in the room, how
+many have answered, how many are right, the percentage, and how many have finished the
+extension. Under that, the wrong answers people are actually giving, grouped and counted,
+which tells you what to reteach before you say a word. Under that, every student's name
+with a tick, a cross or a star. Click any name to watch that student's board live, send
+them a note, or remove them.
 
 ## Running a session
 
 1. Open `teacher.html`, enter the PIN, choose the week, press **Start session**.
-2. Paste the student link (bottom of the teacher page) into the Teams chat.
-3. Use the buttons along the top: **Lobby**, **You do 1 to 7**, **The twelve**, **Finish**. Whatever you press is what every student sees.
-4. On a You do: watch the tiles, click into anyone who needs a nudge, select the students with a tick and send the extension, then **Reveal solution** when you go through it on the deck.
-5. On The twelve: **Show answers** after the session (or straight away if you prefer), **Show worked solutions** for the full working.
-6. **Reset** wipes every student, board, answer and comment for that week's session. Do it before the session starts if the same pack was used for a rehearsal.
+2. Students use the same link every week, so there is nothing to send round.
+3. Use the buttons along the top: **Lobby**, **You do 1 to 10**, **The twelve**, **Finish**.
+4. On a You do: watch the tally and the wrong answers. Click a name if someone needs a nudge.
+   **Reveal solution** when you go through it on the deck.
+5. On The twelve: **Show answers** after the session, **Show solutions** for the full working.
+6. **Reset** wipes every student, answer, note and board for that session.
 
-The deck's "Live" button (bottom bar) opens the teacher screen in a new tab.
+## Files
 
-## Hosting
+- `index.html` student screen, `teacher.html` teacher screen, `loadtest.html` connection test
+- `shared.js` sync layer (Firebase or a local demo store), answer checking, the drawing board
+- `app.css` all the styling
+- `firebase-config.js` project config and the teacher PIN
+- `packs/weekNN.js` one week's You dos, extensions and twelve, generated from the deck by
+  `engine/makepack.js`. Add the new week to `packs/index.js` when you add a pack.
+- `database.rules.json` paste into the Firebase console Rules tab and publish
 
-The app is static files, so GitHub Pages hosts it for free. The live sync needs a Firebase Realtime Database (also free at this scale):
+## Data layout
 
-1. Firebase console: create a project, add a Realtime Database (Europe region, start in test mode), then Project settings > Your apps > Web app > copy the config object.
-2. Paste it into `firebase-config.js` as `window.S7_FIREBASE = {...}` and change `S7_TEACHER_PIN`.
-3. In the database Rules tab, paste the contents of `database.rules.json` and publish.
-4. Push the folder to a GitHub repository, Settings > Pages > deploy from the main branch, root.
+```
+s7/current                     the session id that is live
+s7/sessions/<sid>/meta         {pack, started}
+s7/sessions/<sid>/state        {mode, key, reveal, gridAns, gridSol}
+s7/sessions/<sid>/st/<uid>     {n:name}            presence, removed on disconnect
+s7/sessions/<sid>/an/<q>/<uid> {n,v,c,x}           answer, correct, extension done
+s7/sessions/<sid>/msg/<uid>    {t:text}            a note from you to one student
+s7/sessions/<sid>/req/<uid>    <question number>   you are watching this student
+s7/sessions/<sid>/bd/<uid>     strokes             only while you are watching
+```
 
-With no Firebase config the app runs in **local demo mode**: the teacher and student tabs in the same browser talk to each other, which is enough to try everything out.
-
-## Adding a week
-
-Build the week's deck as usual, then run `node makepack.js weeks/weekNN app/packs` from the build toolkit; that writes `packs/weekNN.js`. Add `'weekNN'` to the list in `packs/index.js`. Push. The new week appears in the menu.
-
-## Data and privacy
-
-Students give a first name and initial only. Everything a session stores is the name, the strokes on their board, their typed answers and your comments to them, all under that week's session, and Reset deletes the lot. The database rules only allow writes under `s7/`. The teacher PIN is a lock on the door, not a safe: anyone determined could read it from the source, so change it each term and reset sessions after use.
+With no Firebase config the app runs in **local demo mode**: teacher and student tabs in
+one browser talk to each other, which is enough to rehearse the whole session.

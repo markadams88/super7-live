@@ -33,6 +33,17 @@ function FirebaseDB(cfg){
   this.remove=function(p){ return db.ref(p).remove(); };
   this.get=function(p){ return db.ref(p).get().then(function(s){ return s.val(); }); };
   this.on=function(p,cb){ var r=db.ref(p); var h=function(s){ cb(s.val()); }; r.on('value',h); return function(){ r.off('value',h); }; };
+  /* child listeners: the whole point of the 500-student rebuild. A 'value'
+     listener on a node with 500 children re-sends all 500 on every change.
+     These send one child at a time, so the teacher screen costs almost nothing. */
+  this.onChild=function(p,h){
+    var r=db.ref(p);
+    var a=function(s){ if(h.added) h.added(s.key, s.val()); };
+    var c=function(s){ if(h.changed) h.changed(s.key, s.val()); };
+    var d=function(s){ if(h.removed) h.removed(s.key); };
+    r.on('child_added',a); r.on('child_changed',c); r.on('child_removed',d);
+    return function(){ r.off('child_added',a); r.off('child_changed',c); r.off('child_removed',d); };
+  };
   this.onDisconnectRemove=function(p){ db.ref(p).onDisconnect().remove(); };
   this.serverTime=function(){ return firebase.database.ServerValue.TIMESTAMP; };
 }
@@ -58,6 +69,16 @@ function LocalDB(){
   this.get=function(p){ return Promise.resolve(getAt(load(),p)); };
   this.on=function(p,cb){ var s={p:p,cb:cb,last:undefined}; subs.push(s); setTimeout(function(){ var v=getAt(load(),p); s.last=JSON.stringify(v); cb(v); },0);
     return function(){ subs=subs.filter(function(x){return x!==s;}); }; };
+  this.onChild=function(p,h){
+    var seen={};
+    return this.on(p,function(v){
+      v=v||{};
+      for(var k in v){ var j=JSON.stringify(v[k]);
+        if(!(k in seen)){ seen[k]=j; if(h.added) h.added(k,v[k]); }
+        else if(seen[k]!==j){ seen[k]=j; if(h.changed) h.changed(k,v[k]); } }
+      for(var k2 in seen){ if(!(k2 in v)){ delete seen[k2]; if(h.removed) h.removed(k2); } }
+    });
+  };
   this.onDisconnectRemove=function(){};
   this.serverTime=function(){ return Date.now(); };
 }

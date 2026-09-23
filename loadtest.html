@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Super 7 Live, connection test</title>
+<link rel="stylesheet" href="app.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+</head>
+<body>
+<div class="top"><span class="flash"><b>7</b>Connection test</span>
+  <span class="ttl">How many students can actually connect at once</span><span class="sp"></span>
+  <span class="pill live" id="pill">idle</span></div>
+<div class="wrap">
+  <div class="card">
+    <div class="eyebrow"><i></i>What this does</div>
+    <p class="muted" style="margin:8px 0 14px">It opens real database connections, one per pretend student, writes a name and an answer for each, then closes them all. Firebase allows 100 at once on the free plan and 200,000 on Blaze, so this is the quickest way to prove which plan you are actually on. It writes to a throwaway session and never touches a live one.</p>
+    <div class="ansrow"><input id="n" class="inp" type="number" value="500" min="10" max="2000"><button class="btn gold" id="go">Run the test</button><button class="btn grey" id="stop">Close them all</button></div>
+    <div id="out" style="margin-top:14px"></div>
+    <div class="tally" id="tiles" style="margin-top:14px"></div>
+  </div>
+</div>
+<script>
+(function(){
+"use strict";
+var apps=[], connected=0, failed=0, written=0, running=false, t0=0;
+var out=document.getElementById('out'), tiles=document.getElementById('tiles'), pill=document.getElementById('pill');
+var sid='loadtest-'+Date.now().toString(36);
+function tile(n,l,cls){ return '<div class="tile '+(cls||'')+'"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>'; }
+function paint(){
+  var secs=((performance.now()-t0)/1000).toFixed(1);
+  tiles.innerHTML=tile(connected,'connected','good')+tile(written,'wrote an answer')+tile(failed,'failed',failed?'gold':'')+tile(secs+'s','elapsed');
+}
+function say(m){ out.innerHTML='<p class="muted">'+m+'</p>'; }
+document.getElementById('go').onclick=function(){
+  if(running) return;
+  if(!window.S7_FIREBASE){ say('No Firebase config on this copy, so there is nothing to connect to.'); return; }
+  var N=Math.max(10,Math.min(2000,+document.getElementById('n').value||500));
+  running=true; connected=0; failed=0; written=0; t0=performance.now(); pill.textContent='running';
+  say('Opening '+N+' connections. Watch the numbers. If it stalls at about 100 you are still on the free Spark plan.');
+  var timer=setInterval(paint,200);
+  for(var i=0;i<N;i++) (function(i){
+    setTimeout(function(){
+      try{
+        var app=firebase.initializeApp(window.S7_FIREBASE,'lt'+i+'_'+Date.now());
+        apps.push(app);
+        var db=app.database();
+        db.ref('.info/connected').on('value',function(s){
+          if(s.val()===true){
+            connected++;
+            db.ref('s7/sessions/'+sid+'/st/u'+i).set({n:'Test '+i,t:Date.now()});
+            db.ref('s7/sessions/'+sid+'/an/1/u'+i).set({n:'Test '+i,v:'69',c:1,t:Date.now()})
+              .then(function(){ written++; });
+          }
+        });
+      }catch(e){ failed++; }
+    }, i*6);
+  })(i);
+  setTimeout(function(){
+    clearInterval(timer); paint(); running=false; pill.textContent='done';
+    out.innerHTML='<p class="muted"><b>'+connected+' of '+N+'</b> connected and <b>'+written+'</b> managed to write an answer.'+
+      (connected<N*0.9?' That is short of the target. If it stopped near 100, upgrade the Firebase project to the Blaze plan and run this again.':' That is the whole set, so the project is on a plan that can take the load.')+
+      ' Press <b>Close them all</b> when you are done, then delete the <code>'+sid+'</code> session from the database.</p>';
+  }, Math.max(12000, N*6+9000));
+};
+document.getElementById('stop').onclick=function(){
+  apps.forEach(function(a){ try{ a.database().goOffline(); a.delete(); }catch(e){} });
+  apps=[]; connected=0; paint(); pill.textContent='closed';
+  say('All connections closed.');
+};
+})();
+</script>
+</body>
+</html>
