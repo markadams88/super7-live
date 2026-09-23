@@ -91,12 +91,22 @@ function renderJoin(){
 }
 document.getElementById('who').onclick=function(){ try{ localStorage.removeItem('s7name'); }catch(e){} name=null; renderJoin(); };
 
-function register(){
-  var w=document.getElementById('who'); w.style.display=''; w.textContent=name;
+/* Claim our place in the room. onDisconnect removes it if this page goes away,
+   so it has to be re-claimed every time the connection comes back: without that
+   a single dropped websocket takes a student off the register for good, even
+   though their page is still working. */
+function claimPresence(){
   db.set(base()+'/st/'+uid, {n:name, t:db.serverTime()});
   db.onDisconnectRemove(base()+'/st/'+uid);
+}
+function register(){
+  var w=document.getElementById('who'); w.style.display=''; w.textContent=name;
+  claimPresence();
   clearSubs(perStudent);
-  /* the only three listeners this page ever holds */
+  if(db.kind==='firebase'){
+    perStudent.push(db.on('.info/connected', function(c){ if(c) claimPresence(); }));
+  }
+  /* the only listeners this page ever holds */
   perStudent.push(db.on(base()+'/state', function(s){ state=s||{mode:'lobby'}; render(); }));
   perStudent.push(db.on(base()+'/msg/'+uid, function(m){ if(m&&m.t) showNote(m.t); }));
   perStudent.push(db.on(base()+'/req/'+uid, function(r){ if(r) sendBoard(r); else stopBoard(); }));
