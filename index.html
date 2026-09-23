@@ -2,8 +2,26 @@
 <html lang="en-GB">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Super 7 Live</title>
+<meta name="description" content="Answer tonight's Super 7 questions live, from Aston University Mathematics School.">
+<meta name="theme-color" content="#610064">
+<meta name="color-scheme" content="light">
+<meta name="format-detection" content="telephone=no">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Aston University Mathematics School">
+<meta property="og:title" content="Super 7 Live">
+<meta property="og:description" content="Free online GCSE maths every Monday at 18:10, from Aston University Mathematics School.">
+<meta property="og:url" content="https://markadams88.github.io/super7-live/">
+<meta property="og:image" content="https://markadams88.github.io/super7-live/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="manifest" href="site.webmanifest">
+<link rel="preload" href="vendor/fonts/schibsted-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/katex.css">
 <link rel="stylesheet" href="app.css">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -15,17 +33,19 @@
 <script src="shared.js"></script>
 </head>
 <body>
-<div class="top">
-  <span class="flash"><b>7</b>Super 7 Live</span>
-  <span class="ttl" id="ttl">Free online GCSE maths from AUMS</span>
+<header class="top">
+  <span class="brand" role="img" aria-label="Aston University Mathematics School"><svg class="logo" aria-hidden="true"><use href="assets/brand.svg#aums"></use></svg></span>
+  <div class="prodname"><span class="p">Super 7 Live</span><span class="ttl" id="ttl">Free online GCSE maths</span></div>
   <span class="sp"></span>
-  <span class="pill" id="who" style="display:none;cursor:pointer" title="Not you? Tap to change your name"></span>
-  <span class="pill live" id="state">not started</span>
-</div>
+  <button type="button" class="chip" id="who" style="display:none" title="Not you? Tap to change your name"></button>
+  <span class="chip live" id="state" role="status" aria-live="polite">not started</span>
+</header>
+<div class="offbar" role="status">Reconnecting. Everything on this page is safe, keep going.</div>
 <div id="demo" class="demo" style="display:none">Local demo mode: this browser only. Add the Firebase config to go live.</div>
-<div class="note" id="note"><div><span class="who">Mr Adams says</span><span id="notetext"></span></div><button class="btn small grey" id="noteok">OK</button></div>
-<div id="main"></div>
-<div id="toast"></div>
+<div class="note" id="note" role="alert"><div><span class="who">Mr Adams says</span><span id="notetext"></span></div><button type="button" class="btn small grey" id="noteok">OK</button></div>
+<main id="main"><div class="boot" aria-label="Connecting"><i></i></div></main>
+<div id="toast" role="status" aria-live="polite"></div>
+<noscript><div class="demo">Super 7 Live needs JavaScript switched on.</div></noscript>
 
 <script>
 /* ============================================================
@@ -40,6 +60,12 @@
 "use strict";
 var db=S7.openDB(), uid=S7.uid(), main=document.getElementById('main');
 if(db.kind==='local') document.getElementById('demo').style.display='block';
+
+/* a hairline under the header once the page scrolls */
+addEventListener('scroll',function(){ document.body.classList.toggle('scrolled', scrollY>4); },{passive:true});
+/* tell the student when the connection drops, but not on the first load */
+if(db.kind==='firebase'){ var wasOn=false;
+  db.on('.info/connected',function(c){ if(c) wasOn=true; document.body.classList.toggle('offline', wasOn && !c); }); }
 
 var sid=null, pack=null, state=null, name=null;
 var unsubs=[], perStudent=[];
@@ -62,8 +88,12 @@ db.on('s7/current', function(cur){
 });
 function renderIdle(){
   statePill('not started');
-  main.innerHTML='<div class="center"><div class="card"><div class="eyebrow"><i></i>Super 7 Live</div><h1>Nothing running yet</h1>'+
-    '<p class="muted" style="margin-top:10px">This page wakes up on its own when Mr Adams starts the session. Leave it open.</p></div></div>';
+  main.innerHTML=S7.stage({
+    kicker:'Super 7 Live',
+    title:'Nothing running <span class="hl">yet</span>',
+    lede:'This page wakes up on its own when Mr Adams starts the session. Leave it open.',
+    body:'<div class="facts"><div><b>Every Monday</b>18:10 to 19:00</div><div><b>Live on Teams</b>with Mr Adams</div><div><b>Free</b>for every GCSE student</div></div>'
+  });
 }
 
 /* ---------- 2. join ---------- */
@@ -73,15 +103,21 @@ function joinSession(){
     if(!meta){ renderIdle(); return; }
     pack=S7.pack(meta.pack);
     document.getElementById('ttl').textContent=pack?pack.title:'Super 7';
-    if(!pack){ main.innerHTML='<div class="center"><div class="card"><h1>Refresh needed</h1><p class="muted">This session uses a question pack this page has not got yet. Pull down to refresh.</p></div></div>'; return; }
+    if(!pack){ main.innerHTML=S7.stage({kicker:'Super 7 Live', title:'Refresh <span class="hl">needed</span>', lede:'Tonight\'s questions are newer than this page. Pull down or press refresh and you will be straight in.'}); return; }
     if(!name) renderJoin(); else register();
   }));
 }
 function renderJoin(){
   statePill('nearly there');
-  main.innerHTML='<div class="center"><div class="card"><div class="eyebrow"><i></i>'+S7.esc(pack.title)+'</div>'+
-    '<h1>What shall I call you?</h1><p class="muted" style="margin:10px 0 16px">First name and the first letter of your surname is perfect, for example Aisha K.</p>'+
-    '<input id="nm" class="inp" maxlength="24" autocomplete="off" placeholder="Your name"><button class="btn gold" id="go" style="margin-top:12px;width:100%">Join the session</button></div></div>';
+  main.innerHTML=S7.stage({
+    kicker:'Super 7 Live<span class="dot"></span>'+S7.esc(pack.title),
+    title:'What shall I call you?',
+    lede:'First name and the first letter of your surname is perfect, for example Aisha K.',
+    body:'<div class="form"><label class="sr" for="nm">Your name</label>'+
+      '<input id="nm" class="inp" maxlength="24" autocomplete="off" autocapitalize="words" enterkeyhint="go" spellcheck="false" placeholder="Your name">'+
+      '<button type="button" class="btn gold arrow" id="go">Join</button></div>'+
+      '<p class="hint">Only Mr Adams sees your name.</p>'
+  });
   var i=document.getElementById('nm');
   i.focus();
   function go(){ var v=S7.cleanName(i.value); if(v.length<2){ toast('Give me at least two letters'); return; }
@@ -156,13 +192,21 @@ function render(){
   }
 }
 function renderLobby(){
-  main.innerHTML='<div class="center"><div class="card"><div class="eyebrow"><i></i>'+S7.esc(pack.title)+'</div>'+
-    '<h1>You are in, '+S7.esc(name)+'</h1><p class="muted" style="margin-top:10px">Watch the screen on Teams. A question will pop up here the moment Mr Adams sends one.</p>'+
-    '<p class="muted" style="margin-top:10px">Get a pen, some paper and your calculator ready.</p></div></div>';
+  main.innerHTML=S7.stage({
+    layout:'l2',
+    kicker:'Super 7 Live<span class="dot"></span>'+S7.esc(pack.title),
+    title:'You\'re in, <span class="hl">'+S7.esc(name)+'</span>',
+    lede:'Watch the screen on Teams. A question will pop up here the moment Mr Adams sends one.',
+    body:'<div class="facts"><div><b>Pen and paper</b>for your working</div><div><b>Calculator</b>you will need it tonight</div><div><b>This page</b>keep it open</div></div>'
+  });
 }
 function renderDone(){
-  main.innerHTML='<div class="center"><div class="card"><div class="eyebrow"><i></i>That is us for tonight</div>'+
-    '<h1>Well done</h1><p class="muted" style="margin-top:10px">'+(pack.next?pack.next.replace(/<[^>]+>/g,''):'See you next Monday at 18:10.')+'</p></div></div>';
+  main.innerHTML=S7.stage({
+    layout:'l3',
+    kicker:'That is us for tonight',
+    title:'Well done, <span class="hl">'+S7.esc(name||'everyone')+'</span>',
+    lede:(pack.next?pack.next.replace(/<[^>]+>/g,''):'See you next Monday at 18:10.')
+  });
   S7.tex(main);
 }
 
@@ -172,15 +216,20 @@ function renderYouDo(){
   var Q=q(state.key); if(!Q){ main.innerHTML=''; return; }
   onExt=false;
   var got=mine[state.key]||{};
+  var all=pack.youdo||[];
   main.innerHTML=
+    '<div class="band"><div class="band-in"><div>'+
+      '<p class="k">You do '+state.key+(all.length?' of '+all.length:'')+'</p>'+
+      '<h1>'+S7.esc(S7.subTitle(Q.sub)||('Question '+state.key))+'</h1></div>'+
+      '<div class="steps" aria-hidden="true">'+all.map(function(x){ return '<i class="'+(x.n===state.key?'on':(x.n<state.key?'done':''))+'"></i>'; }).join('')+'</div>'+
+    '</div></div>'+
     '<div class="wrap">'+
-      '<div class="qhead"><span class="tag">You do '+state.key+'</span><span class="muted">'+S7.esc(Q.sub||'')+'</span></div>'+
       '<div class="qtext" id="qt">'+Q.q+'</div>'+
       (Q.svg?'<div class="qsvg">'+Q.svg+'</div>':'')+
       '<div class="boardwrap"><canvas id="bd"></canvas></div>'+
       S7.toolsHTML()+
-      '<div class="ansrow"><input id="ans" class="inp" autocomplete="off" placeholder="Your answer" value="'+S7.esc(got.v||'')+'">'+
-        '<button class="btn gold" id="send">Check</button></div>'+
+      '<div class="ansrow"><label class="sr" for="ans">Your answer</label><input id="ans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="Your answer" value="'+S7.esc(got.v||'')+'">'+
+        '<button type="button" class="btn gold" id="send">Check</button></div>'+
       '<div id="verdict" class="verdict"></div>'+
       '<div id="extbox"></div>'+
       '<div id="sol" class="sol"></div>'+
@@ -208,13 +257,14 @@ function submit(){
   mine[state.key]={v:v,c:c?1:0};
   db.set(base()+'/an/'+state.key+'/'+uid, {n:name, v:v.slice(0,40), c:c?1:0, t:db.serverTime()});
   verdict(c);
+  var vd=document.getElementById('verdict'); if(vd&&vd.scrollIntoView) vd.scrollIntoView({behavior:'smooth',block:'nearest'});
   if(c) openExtension(false);
 }
 function verdict(c){
   var d=document.getElementById('verdict'); if(!d) return;
   d.className='verdict '+(c?'ok':'no');
-  d.innerHTML=c?'<b>Correct.</b> Nice one. Have a go at the extension below while everyone catches up.'
-               :'<b>Not quite.</b> Have another look, you can change your answer and check again.';
+  d.innerHTML=c?'<div><b>Correct.</b> Nice one. Have a go at the extension below while everyone catches up.</div>'
+               :'<div><b>Not quite.</b> Have another look, you can change your answer and check again.</div>';
 }
 /* ---------- the extension appears automatically on a correct answer ---------- */
 function openExtension(quiet){
@@ -223,11 +273,11 @@ function openExtension(quiet){
   var box=document.getElementById('extbox'); if(!box||box.dataset.on) return;
   box.dataset.on='1';
   box.innerHTML='<div class="extcard"><div class="exthead"><span class="tag gold">Extension</span>'+
-      '<span class="muted">one harder question, then hang on for the next one</span></div>'+
+      '<span class="muted">One harder question, then hang on for the next one</span></div>'+
       '<div class="qtext" id="ext_qt">'+Q.ext.q+'</div>'+
       '<div class="boardwrap small"><canvas id="extbd"></canvas></div>'+
-      '<div class="ansrow"><input id="extans" class="inp" autocomplete="off" placeholder="Extension answer">'+
-      '<button class="btn gold" id="extsend">Check</button></div><div id="extverdict" class="verdict"></div>'+
+      '<div class="ansrow"><label class="sr" for="extans">Extension answer</label><input id="extans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="Extension answer">'+
+      '<button type="button" class="btn gold" id="extsend">Check</button></div><div id="extverdict" class="verdict"></div>'+
       '<div id="extsol" class="sol"></div></div>';
   S7.tex(document.getElementById('ext_qt'));
   extBoard=S7.Board(document.getElementById('extbd'),{});
@@ -239,8 +289,8 @@ function extVerdict(ok){
   var Q=q(state.key);
   var d=document.getElementById('extverdict'); if(!d) return;
   d.className='verdict '+(ok?'ok':'no');
-  d.innerHTML=ok?'<b>Correct.</b> That is the extension done. Sit tight for the next question.'
-                :'<b>Not quite.</b> Try again, or wait for Mr Adams to go through it.';
+  d.innerHTML=ok?'<div><b>Correct.</b> That is the extension done. Sit tight for the next question.</div>'
+                :'<div><b>Not quite.</b> Try again, or wait for Mr Adams to go through it.</div>';
   if(ok){
     var s=document.getElementById('extsol');
     s.innerHTML='<div class="solinner"><div class="lab">How it works</div>'+
@@ -262,12 +312,12 @@ function paintSolution(){
 /* ---------- the twelve ---------- */
 function renderGrid(){
   var cells=(pack.grid||[]).map(function(g){
-    return '<button class="gcell" data-g="'+g.n+'"><span class="gn">Q'+g.n+(g.marks?', '+g.marks+' mark'+(g.marks>1?'s':''):'')+'</span>'+
+    return '<button type="button" class="gcell" data-g="'+g.n+'"><span class="gn">Question '+g.n+(g.marks?'<span class="mk"><span class="sr">, </span>&middot; '+g.marks+' mark'+(g.marks>1?'s':'')+'</span>':'')+'</span>'+
       '<span class="gq">'+g.q+'</span>'+(g.svg?'<span class="gd">'+g.svg+'</span>':'')+'<span class="ga"></span></button>';
   }).join('');
-  main.innerHTML='<div class="wrap"><div class="qhead"><span class="tag">Your twelve</span>'+
-    '<span class="muted">tap any question to open it. Answers appear when Mr Adams releases them.</span></div>'+
-    '<div class="ggrid">'+cells+'</div></div>';
+  main.innerHTML='<div class="band wide"><div class="band-in"><div><p class="k">'+S7.esc(pack.title)+'</p><h1>Your twelve</h1>'+
+    '<p class="sub">Tap any question to open it. Answers appear here when Mr Adams releases them.</p></div></div></div>'+
+    '<div class="wrap wide"><div class="ggrid">'+cells+'</div></div>';
   S7.tex(main);
   main.querySelectorAll('.gcell').forEach(function(b){ b.onclick=function(){ openGridQ(+b.dataset.g); }; });
   paintGridAnswers();
@@ -282,11 +332,12 @@ function paintGridAnswers(){
 function openGridQ(n){
   var g=(pack.grid||[]).filter(function(x){return x.n===n;})[0]; if(!g) return;
   var ov=document.createElement('div'); ov.className='over';
-  ov.innerHTML='<div class="overbox"><button class="x">&times;</button>'+
+  ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true'); ov.setAttribute('aria-label','Question '+n);
+  ov.innerHTML='<div class="overbox"><button type="button" class="x" aria-label="Close">&times;</button>'+
     '<div class="qhead"><span class="tag">Question '+n+' of 12</span>'+(g.marks?'<span class="muted">'+g.marks+' mark'+(g.marks>1?'s':'')+'</span>':'')+'</div>'+
     '<div class="qtext">'+g.q+'</div>'+(g.svg?'<div class="qsvg">'+g.svg+'</div>':'')+
     '<div class="boardwrap"><canvas id="gbd"></canvas></div>'+S7.toolsHTML()+
-    '<div class="ansrow"><input id="gans" class="inp" placeholder="Your answer"><button class="btn gold" id="gsend">Check</button></div>'+
+    '<div class="ansrow"><label class="sr" for="gans">Your answer</label><input id="gans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="Your answer"><button type="button" class="btn gold" id="gsend">Check</button></div>'+
     '<div id="gver" class="verdict"></div><div id="gsol" class="sol"></div></div>';
   document.body.appendChild(ov);
   S7.tex(ov);
@@ -296,19 +347,23 @@ function openGridQ(n){
     var v=(ov.querySelector('#gans').value||'').trim(); if(!v) return;
     var c=S7.checkAnswer(g.answer, v);
     var d=ov.querySelector('#gver'); d.className='verdict '+(c?'ok':'no');
-    d.innerHTML=c?'<b>Correct.</b>':'<b>Not quite.</b> Have another go.';
+    d.innerHTML=c?'<div><b>Correct.</b> Nicely done.</div>':'<div><b>Not quite.</b> Have another go.</div>';
     if(c||state.gridSol){
       var s=ov.querySelector('#gsol');
       s.innerHTML='<div class="solinner"><div class="lab">Worked solution</div>'+
         (g.steps||[]).map(function(st){ return '<div class="step"><span class="t">'+S7.esc(st.t)+'</span><span>'+st.m+'</span></div>'; }).join('')+
-        (g.a?'<div class="final">Answer: '+g.a+'</div>':'')+'</div>';
+        (g.a?'<div class="final">'+g.a+'</div>':'')+'</div>';
       S7.tex(s);
     }
   }
   ov.querySelector('#gsend').onclick=go;
   ov.querySelector('#gans').addEventListener('keydown',function(e){ if(e.key==='Enter') go(); });
-  ov.querySelector('.x').onclick=function(){ ov.remove(); };
-  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  function close(){ ov.remove(); document.removeEventListener('keydown',esc); document.body.style.overflow=''; }
+  function esc(e){ if(e.key==='Escape') close(); }
+  document.addEventListener('keydown',esc);
+  document.body.style.overflow='hidden';
+  ov.querySelector('.x').onclick=close;
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
 }
 })();
 </script>

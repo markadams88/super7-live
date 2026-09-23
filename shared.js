@@ -162,7 +162,7 @@ S7.Board=function(canvas, opts){
     if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}
     var g=canvas.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h);
     g.fillStyle='#fff'; g.fillRect(0,0,w,h);
-    if(st.grid){ g.strokeStyle='rgba(97,0,100,.10)'; g.lineWidth=1; var step=Math.max(16,Math.round(h/12));
+    if(st.grid){ g.strokeStyle='rgba(97,0,100,.075)'; g.lineWidth=1; var step=Math.max(16,Math.round(h/12));
       for(var x=step;x<w;x+=step){g.beginPath();g.moveTo(x,0);g.lineTo(x,h);g.stroke();}
       for(var y=step;y<h;y+=step){g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke();} }
     g.lineCap='round'; g.lineJoin='round';
@@ -187,10 +187,11 @@ S7.Board=function(canvas, opts){
 };
 /* toolbar for a board: returns html; wire with S7.wireTools(container, board) */
 S7.toolsHTML=function(){
-  var pens=['#19151C','#610064','#C0392B','#1E8E5A','#1E5AAF'];
-  return '<div class="tools">'+pens.map(function(c,k){return '<button class="pen'+(k===0?' on':'')+'" style="background:'+c+'" data-pen="'+c+'" title="pen"></button>';}).join('')+
-    '<span class="ws"><button data-w="2" title="thin"><i style="width:5px;height:5px"></i></button><button data-w="3.5" class="on" title="medium"><i style="width:9px;height:9px"></i></button><button data-w="6" title="thick"><i style="width:14px;height:14px"></i></button></span>'+
-    '<button class="tb" data-erase>Rubber</button><button class="tb" data-undo>Undo</button><button class="tb" data-clear>Clear</button></div>';
+  var pens=[['#19151C','Black'],['#610064','Purple'],['#F93E26','Orange'],['#5949EB','Blue'],['#0F8A63','Green']];
+  return '<div class="tools" role="toolbar" aria-label="Whiteboard tools">'+
+    '<span class="pens">'+pens.map(function(c,k){return '<button type="button" class="pen'+(k===0?' on':'')+'" style="--c:'+c[0]+'" data-pen="'+c[0]+'" aria-label="'+c[1]+' pen" title="'+c[1]+'"></button>';}).join('')+'</span>'+
+    '<span class="ws"><button type="button" data-w="2" aria-label="Thin" title="Thin"><i style="width:4px;height:4px"></i></button><button type="button" data-w="3.5" class="on" aria-label="Medium" title="Medium"><i style="width:8px;height:8px"></i></button><button type="button" data-w="6" aria-label="Thick" title="Thick"><i style="width:13px;height:13px"></i></button></span>'+
+    '<span class="acts"><button type="button" class="tb" data-erase>Rubber</button><button type="button" class="tb" data-undo>Undo</button><button type="button" class="tb" data-clear>Clear</button></span></div>';
 };
 S7.wireTools=function(root, board){
   root.addEventListener('click',function(e){
@@ -212,6 +213,27 @@ S7.paint=function(canvas, strokes){
   (strokes||[]).forEach(function(s){ if(!s||!s.p||!s.p.length) return; g.strokeStyle=s.c||'#fff'; g.lineWidth=Math.max(1,s.w*sc);
     g.beginPath(); g.moveTo(s.p[0][0]*w,s.p[0][1]*h); for(var k=1;k<s.p.length;k++) g.lineTo(s.p[k][0]*w,s.p[k][1]*h);
     if(s.p.length===1) g.lineTo(s.p[0][0]*w+0.1,s.p[0][1]*h+0.1); g.stroke(); });
+};
+
+/* ---------- brand: the three Aston pillars and the full-bleed stage ----------
+   Three equal parallelograms, one per secondary colour, each bleeding off the
+   page with one end showing. Drawn in 1-unit SVGs so the CSS can place and
+   size them per screen without touching the geometry. */
+S7.pillars='<div class="pillars" aria-hidden="true">'+
+  '<svg class="pl p1" viewBox="0 0 1 1" focusable="false"><polygon points="-10.00,1.41 10.00,-1.41 -139.13,-214.39 -159.13,-211.57"/></svg>'+
+  '<svg class="pl p2" viewBox="0 0 1 1" focusable="false"><polygon points="6.18,-8.35 -6.18,8.35 252.15,37.79 264.51,21.08"/></svg>'+
+  '<svg class="pl p3" viewBox="0 0 1 1" focusable="false"><polygon points="-9.41,-4.35 9.41,4.35 32.08,263.36 13.25,254.66"/></svg></div>';
+/* "Example 2, You do, Percentage of an amount" -> "Percentage of an amount" */
+S7.subTitle=function(sub){ return String(sub||'').replace(/^\s*Example\s+\d+\s*,\s*You do\s*,\s*/i,'').trim(); };
+/* o = {kicker, title (html), lede (html), body (html), layout} */
+S7.stage=function(o){
+  return '<section class="stage'+(o.layout?' '+o.layout:'')+'">'+S7.pillars+
+    '<div class="stage-in">'+
+      (o.kicker?'<p class="kicker">'+o.kicker+'</p>':'')+
+      '<h1>'+o.title+'</h1>'+
+      (o.lede?'<p class="lede">'+o.lede+'</p>':'')+
+      (o.body||'')+
+    '</div></section>';
 };
 
 /* ---------- packs ---------- */

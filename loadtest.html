@@ -2,7 +2,10 @@
 <html lang="en-GB">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#610064">
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <title>Super 7 Live, connection test</title>
 <link rel="stylesheet" href="app.css">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -10,14 +13,17 @@
 <script src="firebase-config.js"></script>
 </head>
 <body>
-<div class="top"><span class="flash"><b>7</b>Connection test</span>
-  <span class="ttl">How many students can actually connect at once</span><span class="sp"></span>
-  <span class="pill live" id="pill">idle</span></div>
+<header class="top">
+  <span class="brand" role="img" aria-label="Aston University Mathematics School"><svg class="logo" aria-hidden="true"><use href="assets/brand.svg#aums"></use></svg></span>
+  <div class="prodname"><span class="p">Super 7 Live</span><span class="ttl">Connection test</span></div>
+  <span class="sp"></span><span class="chip live" id="pill">idle</span>
+</header>
+<div class="band"><div class="band-in"><div><p class="k">Super 7 Live</p><h1>Connection test</h1><p class="sub">How many students can actually connect at once.</p></div></div></div>
 <div class="wrap">
   <div class="card">
-    <div class="eyebrow"><i></i>What this does</div>
+    <p class="lab" style="color:var(--deep)">What this does</p>
     <p class="muted" style="margin:8px 0 14px">It opens real database connections, one per pretend student, writes a name and an answer for each, then closes them all. Firebase allows 100 at once on the free plan and 200,000 on Blaze, so this is the quickest way to prove which plan you are actually on. It writes to a throwaway session and never touches a live one.</p>
-    <div class="ansrow"><input id="n" class="inp" type="number" value="500" min="10" max="2000"><button class="btn gold" id="go">Run the test</button><button class="btn grey" id="stop">Close them all</button></div>
+    <div class="ansrow"><input id="n" class="inp" type="number" value="500" min="10" max="2000"><button type="button" class="btn gold" id="go">Run the test</button><button type="button" class="btn grey" id="stop">Close them all</button></div>
     <div id="out" style="margin-top:14px"></div>
     <div class="tally" id="tiles" style="margin-top:14px"></div>
   </div>

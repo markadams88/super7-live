@@ -99,3 +99,22 @@ s7/sessions/<sid>/bd/<uid>     strokes             only while you are watching
 
 With no Firebase config the app runs in **local demo mode**: teacher and student tabs in
 one browser talk to each other, which is enough to rehearse the whole session.
+
+## Look and feel
+
+Built to the Aston University brand guidelines: Deep Purple (#610064) as the ground,
+white type, the three secondary colours (purple, orange, pink) used only for the three
+pillars, and the tertiary palette (blue, green, grey) used only for the teacher's data.
+Sentence case throughout, square corners, very little motion.
+
+- `assets/brand.svg` the Aston University Mathematics School logo, traced to a vector
+  from the official PNG so it stays sharp at every size
+- `assets/` favicon, home-screen icons and `og.png`, the preview card Teams and
+  WhatsApp show when the link is pasted
+- `vendor/fonts/` Schibsted Grotesk, the closest free match to Aktiv Grotesk (which is
+  licensed for print, not the web). Self-hosted, so no third-party font calls. OFL licence
+  included.
+- `site.webmanifest` lets students add Super 7 to their home screen as an app
+- The three pillars are drawn in `S7.pillars` (shared.js) and placed per screen in
+  `app.css`; the positions change slightly from screen to screen so the session feels
+  like one continuous story.

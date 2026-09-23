@@ -2,8 +2,27 @@
 <html lang="en-GB">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Super 7 Live, teacher</title>
+<meta name="description" content="Teacher screen for Super 7 Live.">
+<meta name="theme-color" content="#610064">
+<meta name="color-scheme" content="light">
+<meta name="format-detection" content="telephone=no">
+<meta name="robots" content="noindex">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Aston University Mathematics School">
+<meta property="og:title" content="Super 7 Live">
+<meta property="og:description" content="Free online GCSE maths every Monday at 18:10, from Aston University Mathematics School.">
+<meta property="og:url" content="https://markadams88.github.io/super7-live/">
+<meta property="og:image" content="https://markadams88.github.io/super7-live/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="manifest" href="site.webmanifest">
+<link rel="preload" href="vendor/fonts/schibsted-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/katex.css">
 <link rel="stylesheet" href="app.css">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -15,16 +34,16 @@
 <script src="shared.js"></script>
 </head>
 <body class="teacher">
-<div class="top">
-  <span class="flash"><b>7</b>Super 7 Live, teacher</span>
-  <span class="ttl" id="ttl"></span>
+<header class="top">
+  <span class="brand" role="img" aria-label="Aston University Mathematics School"><svg class="logo" aria-hidden="true"><use href="assets/brand.svg#aums"></use></svg></span>
+  <div class="prodname"><span class="p">Super 7 Live, teacher</span><span class="ttl" id="ttl">Control room</span></div>
   <span class="sp"></span>
-  <span class="pill" id="cap">0 in the room</span>
-  <span class="pill live" id="state">not started</span>
-</div>
+  <span class="chip" id="cap">0 in the room</span>
+  <span class="chip live" id="state" role="status">not started</span>
+</header>
 <div id="demo" class="demo" style="display:none">Local demo mode: this browser only. Add the Firebase config to go live.</div>
-<div id="main"></div>
-<div id="toast"></div>
+<main id="main"><div class="boot" aria-label="Loading"><i></i></div></main>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 /* ============================================================
@@ -42,6 +61,8 @@ if(db.kind==='local') document.getElementById('demo').style.display='block';
 
 var sid=null, pack=null, state={mode:'lobby'}, students={}, answers={}, ansUnsub=null, watching=null, watchUnsub=null;
 var nStud=0;
+addEventListener('scroll',function(){ document.body.classList.toggle('scrolled', scrollY>4); },{passive:true});
+document.addEventListener('keydown',function(e){ if(e.key==='Escape' && watching) closeFocus(); });
 function base(){ return 's7/sessions/'+sid; }
 function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(function(){t.classList.remove('show');},2200); }
 
@@ -50,9 +71,13 @@ var ok=false;
 try{ ok = sessionStorage.getItem('s7teach')==='1'; }catch(e){}
 if(!ok) askPin(); else boot();
 function askPin(){
-  main.innerHTML='<div class="center"><div class="card"><div class="eyebrow"><i></i>Teacher screen</div><h1>PIN</h1>'+
-    '<input id="pin" class="inp" type="password" inputmode="numeric" style="margin-top:12px" placeholder="PIN">'+
-    '<button class="btn gold" id="pgo" style="margin-top:12px;width:100%">Open</button></div></div>';
+  main.innerHTML=S7.stage({
+    kicker:'Super 7 Live<span class="dot"></span>Teacher screen',
+    title:'Control <span class="hl">room</span>',
+    lede:'Enter the PIN to run tonight\'s session.',
+    body:'<div class="form"><label class="sr" for="pin">PIN</label><input id="pin" class="inp" type="password" inputmode="numeric" autocomplete="off" enterkeyhint="go" placeholder="PIN">'+
+      '<button type="button" class="btn gold arrow" id="pgo">Open</button></div>'
+  });
   var i=document.getElementById('pin'); i.focus();
   function go(){ if(i.value===String(window.S7_TEACHER_PIN||'7777')){ try{ sessionStorage.setItem('s7teach','1'); }catch(e){} boot(); } else toast('Wrong PIN'); }
   document.getElementById('pgo').onclick=go;
@@ -68,10 +93,16 @@ function boot(){
 }
 function renderSetup(){
   var opts=S7.packList().map(function(p){ var k=S7.pack(p); return '<option value="'+p+'">'+S7.esc(k?k.title:p)+'</option>'; }).join('');
-  main.innerHTML='<div class="center"><div class="card"><div class="eyebrow"><i></i>Start a session</div><h1>Which week?</h1>'+
-    '<select id="pk" class="inp" style="margin-top:12px">'+opts+'</select>'+
-    '<button class="btn gold" id="start" style="margin-top:12px;width:100%">Start session</button>'+
-    '<p class="muted" style="margin-top:12px">Students all use the same link every week, so there is nothing to send round.</p></div></div>';
+  document.getElementById('state').textContent='not started';
+  main.innerHTML=S7.stage({
+    layout:'l2',
+    kicker:'Super 7 Live<span class="dot"></span>Start a session',
+    title:'Which <span class="hl">week?</span>',
+    lede:'Students all use the same link every week, so there is nothing to send round.',
+    body:'<div class="form"><label class="sr" for="pk">Week</label><select id="pk" class="inp">'+opts+'</select>'+
+      '<button type="button" class="btn gold arrow" id="start">Start</button></div>'
+  });
+  var pk=document.getElementById('pk'); if(pk.options.length) pk.selectedIndex=pk.options.length-1;
   document.getElementById('start').onclick=function(){
     var p=document.getElementById('pk').value;
     var id=p+'-'+Date.now().toString(36);
@@ -120,7 +151,7 @@ function shell(){
     return '<button class="btn small'+(state.mode==='youdo'&&state.key===x.n?' on':'')+'" data-go="'+x.n+'">'+x.n+'</button>';
   }).join('');
   main.innerHTML=
-    '<div class="tbar">'+
+    '<div class="dash"><div class="tbar">'+
       '<button class="btn small'+(state.mode==='lobby'?' on':'')+'" data-mode="lobby">Lobby</button>'+
       '<span class="ydgroup"><span class="lab">You do</span>'+yd+'</span>'+
       '<button class="btn small'+(state.mode==='grid'?' on':'')+'" data-mode="grid">The twelve</button>'+
@@ -129,12 +160,13 @@ function shell(){
       (state.mode==='youdo'?'<button class="btn gold small" id="rev">'+(state.reveal?'Hide':'Reveal')+' solution</button>':'')+
       (state.mode==='grid'?'<button class="btn gold small" id="ga">'+(state.gridAns?'Hide':'Show')+' answers</button>'+
                            '<button class="btn small" id="gs">'+(state.gridSol?'Hide':'Show')+' solutions</button>':'')+
-      '<button class="btn grey small" id="reset">Reset</button>'+
+      '<button class="btn grey small" id="reset" title="Clear every student, answer and note">Reset</button>'+
     '</div>'+
+    qline()+
     '<div class="tally" id="tally"></div>'+
     (state.mode==='youdo'?'<div class="wrongs" id="wrongs"></div>':'')+
-    '<div class="roster"><div class="rhead"><input id="find" class="inp" placeholder="Find a student by name"><span class="muted" id="rcount"></span></div><div class="rlist" id="rlist"></div></div>'+
-    '<div id="focus"></div>';
+    '<div class="roster"><div class="rhead"><label class="sr" for="find">Find a student</label><input id="find" class="inp" type="search" autocomplete="off" spellcheck="false" placeholder="Find a student by name"><span class="muted" id="rcount"></span></div><div class="rlist" id="rlist"></div></div>'+
+    '</div><div id="focus" role="dialog" aria-label="Student board"></div>';
   main.querySelectorAll('[data-mode]').forEach(function(b){ b.onclick=function(){ setState({mode:b.dataset.mode, key:0, reveal:0}); }; });
   main.querySelectorAll('[data-go]').forEach(function(b){ b.onclick=function(){ setState({mode:'youdo', key:+b.dataset.go, reveal:0}); }; });
   var r=document.getElementById('rev'); if(r) r.onclick=function(){ setState({reveal: state.reveal?0:1}); };
@@ -142,7 +174,15 @@ function shell(){
   var gs=document.getElementById('gs'); if(gs) gs.onclick=function(){ setState({gridSol: state.gridSol?0:1}); };
   document.getElementById('reset').onclick=resetAll;
   document.getElementById('find').addEventListener('input', paintRoster);
+  S7.tex(main.querySelector('.qline')||document.createElement('div'));
   paintCounts();
+}
+/* what the students are looking at, with the answer, so the teacher never has to hunt for it */
+function qline(){
+  if(state.mode!=='youdo'||!pack) return '';
+  var Q=(pack.youdo||[]).filter(function(x){ return x.n===state.key; })[0]; if(!Q) return '';
+  return '<div class="qline"><span class="lab">You do '+state.key+'</span><span class="t">'+S7.esc(S7.subTitle(Q.sub)||'')+'</span>'+
+    (Q.final?'<span class="a"><span class="lab">Answer</span><span>'+Q.final+'</span></span>':'')+'</div>';
 }
 function setState(patch){ db.update(base()+'/state', patch); }
 
@@ -157,8 +197,14 @@ function paintCounts(){
   function tile(n,l,cls){ return '<div class="tile '+(cls||'')+'"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>'; }
   if(state.mode==='youdo'){
     var pct = ans? Math.round(cor/ans*100) : 0;
-    t.innerHTML=tile(nStud,'in the room')+tile(ans,'have answered')+tile(cor,'correct','good')+
-                tile(pct+'%','of answers correct')+tile(ext,'done the extension','gold');
+    var room=Math.max(nStud,ans,1), wrong=ans-cor, wait=Math.max(0,room-ans);
+    function seg(n,c){ return '<i class="'+c+'" style="flex-basis:'+(n/room*100).toFixed(2)+'%"></i>'; }
+    t.innerHTML=tile(nStud,'in the room')+tile(ans,'have answered','blue')+tile(cor,'correct','good')+
+                tile(pct+'%','of answers correct','pct')+tile(ext,'done the extension','gold')+
+                '<div class="meter"><div class="bar" role="img" aria-label="'+cor+' correct, '+wrong+' not yet, '+wait+' still working">'+
+                  seg(Math.max(0,cor-ext),'c')+seg(ext,'x')+seg(wrong,'w')+'</div>'+
+                '<div class="key"><span style="--kc:var(--green)">'+Math.max(0,cor-ext)+' correct</span><span style="--kc:var(--deep)">'+ext+' correct and extension done</span>'+
+                  '<span style="--kc:var(--orange)">'+wrong+' not yet</span><span style="--kc:var(--line-2)">'+wait+' still working</span></div></div>';
   } else {
     t.innerHTML=tile(nStud,'in the room');
   }
@@ -172,7 +218,7 @@ function paintWrongs(){
   var list=Object.keys(groups).map(function(k){ return groups[k]; }).sort(function(a,b){ return b.n-a.n; }).slice(0,6);
   if(!list.length){ w.innerHTML='<div class="muted">No wrong answers in yet.</div>'; return; }
   w.innerHTML='<div class="lab">Most common wrong answers</div>'+list.map(function(g){
-    return '<span class="wchip"><b>'+S7.esc(g.t)+'</b>'+g.n+'</span>'; }).join('');
+    return '<span class="wchip"><b>'+S7.esc(g.t)+'</b><span class="c">'+g.n+'</span></span>'; }).join('');
 }
 function paintRoster(){
   var l=document.getElementById('rlist'); if(!l) return;
@@ -203,9 +249,9 @@ function focusOn(u){
   var a=answers[u]||{};
   f.innerHTML='<div class="focusbox"><div class="fhead"><b>'+S7.esc((students[u]||{}).n||'?')+'</b>'+
     (a.v!=null?'<span class="pill '+(a.c?'good':'bad')+'">'+S7.esc(a.v)+'</span>':'<span class="pill">no answer yet</span>')+
-    '<span class="sp"></span><button class="btn small" id="fclose">Close</button></div>'+
+    '<span class="sp"></span><button type="button" class="btn small" id="fclose">Close</button></div>'+
     '<canvas id="fbd" class="fbd"></canvas>'+
-    '<div class="ansrow"><input id="fmsg" class="inp" maxlength="120" placeholder="Send them a note"><button class="btn gold" id="fsend">Send</button></div>'+
+    '<div class="ansrow"><label class="sr" for="fmsg">Note</label><input id="fmsg" class="inp" maxlength="120" autocomplete="off" placeholder="Send them a note"><button type="button" class="btn gold" id="fsend">Send</button></div>'+
     '<div class="quick">'+['Check your multiplier','Is that the whole or the part?','Divide, do not multiply','Nearly, check the rounding','Great work'].map(function(t){
         return '<button class="btn small grey" data-q="'+S7.esc(t)+'">'+S7.esc(t)+'</button>'; }).join('')+'</div>'+
     '<button class="btn grey small" id="fkick" style="margin-top:10px">Remove this student</button></div>';
@@ -215,7 +261,7 @@ function focusOn(u){
   document.getElementById('fsend').onclick=function(){ var v=document.getElementById('fmsg').value.trim(); if(v){ db.set(base()+'/msg/'+u,{t:v,ts:db.serverTime()}); toast('Sent'); document.getElementById('fmsg').value=''; } };
   f.querySelectorAll('[data-q]').forEach(function(b){ b.onclick=function(){ db.set(base()+'/msg/'+u,{t:b.dataset.q,ts:db.serverTime()}); toast('Sent'); }; });
   document.getElementById('fkick').onclick=function(){ db.remove(base()+'/st/'+u); closeFocus(); };
-  f.scrollIntoView({behavior:'smooth',block:'nearest'});
+  document.getElementById('fmsg').addEventListener('keydown',function(e){ if(e.key==='Enter') document.getElementById('fsend').click(); });
 }
 function closeFocus(){
   if(watchUnsub){ watchUnsub(); watchUnsub=null; }
