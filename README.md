@@ -95,6 +95,7 @@ s7/sessions/<sid>/an/<q>/<uid> {n,v,c,x}           answer, correct, extension do
 s7/sessions/<sid>/msg/<uid>    {t:text}            a note from you to one student
 s7/sessions/<sid>/req/<uid>    <question number>   you are watching this student
 s7/sessions/<sid>/bd/<uid>     strokes             only while you are watching
+s7/sessions/<sid>/inbox/<uid>  {n,t,q,ts}          a note from a student to you, newest replaces the last
 ```
 
 With no Firebase config the app runs in **local demo mode**: teacher and student tabs in

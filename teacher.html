@@ -38,6 +38,7 @@
   <span class="brand" role="img" aria-label="Aston University Mathematics School"><svg class="logo" aria-hidden="true"><use href="assets/brand.svg#aums"></use></svg></span>
   <div class="prodname"><span class="p">Super 7 Live, teacher</span><span class="ttl" id="ttl">Control room</span></div>
   <span class="sp"></span>
+  <button type="button" class="chip mailchip" id="mailchip" hidden>0 messages</button>
   <span class="chip" id="cap">0 in the room</span>
   <span class="chip live" id="state" role="status">not started</span>
 </header>
@@ -59,10 +60,12 @@
 var db=S7.openDB(), main=document.getElementById('main');
 if(db.kind==='local') document.getElementById('demo').style.display='block';
 
+var booted=false;
 var sid=null, pack=null, state={mode:'lobby'}, students={}, answers={}, ansUnsub=null, watching=null, watchUnsub=null;
-var nStud=0;
+var nStud=0, inbox={}, seenAt={};
 addEventListener('scroll',function(){ document.body.classList.toggle('scrolled', scrollY>4); },{passive:true});
 document.addEventListener('keydown',function(e){ if(e.key==='Escape' && watching) closeFocus(); });
+document.getElementById('mailchip').onclick=function(){ var b=document.getElementById('inbox'); if(b) b.scrollIntoView({behavior:'smooth',block:'start'}); };
 function base(){ return 's7/sessions/'+sid; }
 function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(function(){t.classList.remove('show');},2200); }
 
@@ -125,6 +128,13 @@ function attach(){
       changed:function(k,v){ students[k]=v||{}; countsDirty(); },
       removed:function(k){ if(students[k]){ delete students[k]; nStud--; } countsDirty(); }
     });
+    /* notes students send to you, one slot per student, newest replaces the last */
+    db.onChild(base()+'/inbox', {
+      added:function(k,v){ inbox[k]=v||{}; if(booted) toast('Message from '+((v&&v.n)||'a student')); inboxDirty(); },
+      changed:function(k,v){ inbox[k]=v||{}; toast('Message from '+((v&&v.n)||'a student')); inboxDirty(); },
+      removed:function(k){ delete inbox[k]; inboxDirty(); }
+    });
+    setTimeout(function(){ booted=true; }, 2500);
   });
 }
 function subscribeAnswers(){
@@ -145,7 +155,7 @@ function shell(){
   document.getElementById('state').textContent=
     state.mode==='lobby'?'lobby':(state.mode==='grid'?'the twelve':(state.mode==='done'?'finished':'You do '+state.key));
   var sig=state.mode+':'+state.key;
-  if(sig===shellMode){ paintCounts(); return; }
+  if(sig===shellMode){ paintControls(); paintCounts(); return; }
   shellMode=sig;
   var yd=(pack&&pack.youdo||[]).map(function(x){
     return '<button class="btn small'+(state.mode==='youdo'&&state.key===x.n?' on':'')+'" data-go="'+x.n+'">'+x.n+'</button>';
@@ -157,32 +167,74 @@ function shell(){
       '<button class="btn small'+(state.mode==='grid'?' on':'')+'" data-mode="grid">The twelve</button>'+
       '<button class="btn small'+(state.mode==='done'?' on':'')+'" data-mode="done">Finish</button>'+
       '<span class="sp"></span>'+
-      (state.mode==='youdo'?'<button class="btn gold small" id="rev">'+(state.reveal?'Hide':'Reveal')+' solution</button>':'')+
-      (state.mode==='grid'?'<button class="btn gold small" id="ga">'+(state.gridAns?'Hide':'Show')+' answers</button>'+
-                           '<button class="btn small" id="gs">'+(state.gridSol?'Hide':'Show')+' solutions</button>':'')+
+      (state.mode==='youdo'?toggle('rev','Worked solution'):'')+
+      (state.mode==='grid'?toggle('ga','Answers')+toggle('gs','Solutions'):'')+
       '<button class="btn grey small" id="reset" title="Clear every student, answer and note">Reset</button>'+
     '</div>'+
-    qline()+
+    '<div class="dgrid"><div class="dmain">'+
+    qpanel()+
     '<div class="tally" id="tally"></div>'+
     (state.mode==='youdo'?'<div class="wrongs" id="wrongs"></div>':'')+
     '<div class="roster"><div class="rhead"><label class="sr" for="find">Find a student</label><input id="find" class="inp" type="search" autocomplete="off" spellcheck="false" placeholder="Find a student by name"><span class="muted" id="rcount"></span></div><div class="rlist" id="rlist"></div></div>'+
+    '</div><aside class="dside"><section class="inbox" id="inbox" aria-live="polite"></section></aside></div>'+
     '</div><div id="focus" role="dialog" aria-label="Student board"></div>';
   main.querySelectorAll('[data-mode]').forEach(function(b){ b.onclick=function(){ setState({mode:b.dataset.mode, key:0, reveal:0}); }; });
   main.querySelectorAll('[data-go]').forEach(function(b){ b.onclick=function(){ setState({mode:'youdo', key:+b.dataset.go, reveal:0}); }; });
   var r=document.getElementById('rev'); if(r) r.onclick=function(){ setState({reveal: state.reveal?0:1}); };
   var ga=document.getElementById('ga'); if(ga) ga.onclick=function(){ setState({gridAns: state.gridAns?0:1}); };
   var gs=document.getElementById('gs'); if(gs) gs.onclick=function(){ setState({gridSol: state.gridSol?0:1}); };
+  main.querySelectorAll('.gq').forEach(function(b){ b.onclick=function(){ b.classList.toggle('open'); }; });
   document.getElementById('reset').onclick=resetAll;
   document.getElementById('find').addEventListener('input', paintRoster);
-  S7.tex(main.querySelector('.qline')||document.createElement('div'));
-  paintCounts();
+  S7.tex(main.querySelector('.qpanel')||document.createElement('div'));
+  paintControls(); paintInbox(); paintCounts();
 }
-/* what the students are looking at, with the answer, so the teacher never has to hunt for it */
-function qline(){
-  if(state.mode!=='youdo'||!pack) return '';
-  var Q=(pack.youdo||[]).filter(function(x){ return x.n===state.key; })[0]; if(!Q) return '';
-  return '<div class="qline"><span class="lab">You do '+state.key+'</span><span class="t">'+S7.esc(S7.subTitle(Q.sub)||'')+'</span>'+
-    (Q.final?'<span class="a"><span class="lab">Answer</span><span>'+Q.final+'</span></span>':'')+'</div>';
+/* on/off switches, repainted on every state change so they can never show the wrong thing */
+var TOG={rev:'reveal', ga:'gridAns', gs:'gridSol'};
+function toggle(id,label){
+  return '<button type="button" class="tog" id="'+id+'" role="switch" aria-checked="false"><i aria-hidden="true"></i>'+
+    '<span class="tl">'+label+'</span><span class="ts">Hidden</span></button>';
+}
+function paintControls(){
+  for(var id in TOG){ var b=document.getElementById(id); if(!b) continue;
+    var on=!!state[TOG[id]];
+    b.classList.toggle('on',on); b.setAttribute('aria-checked',on?'true':'false');
+    b.querySelector('.ts').textContent=on?'Showing':'Hidden';
+    b.title=on?'Students can see this now. Click to hide it.':'Students cannot see this yet. Click to show it.';
+  }
+  var rs=document.getElementById('revstate');
+  if(rs){ rs.className='qp-rev'+(state.reveal?' on':'');
+    rs.textContent=state.reveal?'Worked solution is showing on every student\'s screen':'Worked solution is hidden from students'; }
+  var gst=document.getElementById('gridstate');
+  if(gst){ gst.className='qp-rev'+((state.gridAns||state.gridSol)?' on':'');
+    gst.textContent=(state.gridAns?'Answers showing':'Answers hidden')+', '+(state.gridSol?'solutions showing':'solutions hidden')+' on students\' screens'; }
+}
+/* what the students are looking at, in full, with the answer, so the teacher never has to hunt for it */
+function qpanel(){
+  if(!pack) return '';
+  if(state.mode==='youdo'){
+    var Q=(pack.youdo||[]).filter(function(x){ return x.n===state.key; })[0]; if(!Q) return '';
+    var n=(pack.youdo||[]).length;
+    return '<section class="qpanel"><div class="qp-main">'+
+        '<p class="qp-k"><span class="lab">You do '+state.key+(n?' of '+n:'')+'</span><span class="qp-t">'+S7.esc(S7.subTitle(Q.sub)||'')+'</span></p>'+
+        '<div class="qp-q">'+Q.q+'</div>'+(Q.svg?'<div class="qp-svg">'+Q.svg+'</div>':'')+
+      '</div><div class="qp-side">'+
+        '<div class="qp-ans"><span class="lab">Answer</span><span class="v">'+(Q.final||S7.esc(String(Q.answer&&Q.answer.value!=null?Q.answer.value:'')))+'</span></div>'+
+        '<p class="qp-rev" id="revstate"></p>'+
+        (Q.ext?'<div class="qp-ext"><span class="lab">Extension, opens on a correct answer</span><div class="qp-eq">'+Q.ext.q+'</div>'+
+          (Q.ext.final?'<div class="qp-ea"><span class="lab">Answer</span> '+Q.ext.final+'</div>':'')+'</div>':'')+
+      '</div></section>';
+  }
+  if(state.mode==='grid'){
+    var cells=(pack.grid||[]).map(function(g){
+      return '<button type="button" class="gq"><span class="gqn">Q'+g.n+(g.marks?' <em>'+g.marks+' mark'+(g.marks>1?'s':'')+'</em>':'')+'</span>'+
+        '<span class="gqq">'+g.q+'</span>'+(g.a?'<span class="gqa"><span class="lab">Answer</span> '+g.a+'</span>':'')+'</button>';
+    }).join('');
+    return '<section class="qpanel grid"><p class="qp-k"><span class="lab">The twelve</span><span class="qp-t">What students can see. Click a question to read it in full.</span></p>'+
+      '<p class="qp-rev" id="gridstate"></p><div class="gqs">'+cells+'</div></section>';
+  }
+  if(state.mode==='lobby') return '<section class="qpanel idle"><p class="qp-k"><span class="lab">Lobby</span><span class="qp-t">Students are on the waiting screen. Pick a You do to send them a question.</span></p></section>';
+  return '';
 }
 function setState(patch){ db.update(base()+'/state', patch); }
 
@@ -232,12 +284,38 @@ function paintRoster(){
     var a=answers[k]||{}, cls='', mark='';
     if(a.v!=null){ cls=a.c?'ok':'no'; mark=a.c?'&#10003;':'&#10007;'; }
     if(a.x){ cls='ext'; mark='&#9733;'; }
-    return '<button class="rw '+cls+'" data-u="'+k+'"><span class="nm">'+S7.esc(students[k].n||'?')+'</span>'+
+    return '<button class="rw '+cls+(inbox[k]?' has-msg':'')+'" data-u="'+k+'"><span class="nm">'+S7.esc(students[k].n||'?')+'</span>'+
            (a.v!=null?'<span class="av">'+S7.esc(a.v)+'</span>':'')+'<span class="mk">'+mark+'</span></button>';
   }).join('');
   l.innerHTML=html+(cap<shownKeys.length?'<div class="muted" style="padding:8px">Showing the first '+cap+'. Type a name to find anyone.</div>':'');
   l.querySelectorAll('.rw').forEach(function(b){ b.onclick=function(){ focusOn(b.dataset.u); }; });
 }
+
+/* ---------- notes from students ---------- */
+var idirty=false;
+function inboxDirty(){ if(idirty) return; idirty=true; setTimeout(function(){ idirty=false; paintInbox(); paintRoster(); }, 200); }
+function ago(ts){ if(!ts) return ''; var s=Math.max(0,Math.round((Date.now()-ts)/1000)); return s<60?'just now':(s<3600?Math.round(s/60)+' min ago':Math.round(s/3600)+' h ago'); }
+function paintInbox(){
+  var keys=Object.keys(inbox).sort(function(a,b){ return (inbox[b].ts||0)-(inbox[a].ts||0); });
+  var unread=keys.filter(function(k){ return !(seenAt[k]&&seenAt[k]>=(inbox[k].ts||0)); }).length;
+  var chip=document.getElementById('mailchip');
+  chip.hidden=!keys.length; chip.textContent=keys.length+' message'+(keys.length===1?'':'s');
+  chip.classList.toggle('new',unread>0);
+  var box=document.getElementById('inbox'); if(!box) return;
+  var head='<div class="ihead"><span class="lab">Messages from students</span>'+(unread?'<span class="badge">'+unread+' new</span>':'')+'</div>';
+  if(!keys.length){ box.innerHTML=head+'<p class="muted">Nothing yet. Students can send you a short note from their screen and it will appear here.</p>'; return; }
+  box.innerHTML=head+'<ol class="ilist">'+keys.slice(0,60).map(function(k){
+    var m=inbox[k], isNew=!(seenAt[k]&&seenAt[k]>=(m.ts||0));
+    return '<li class="im'+(isNew?' new':'')+'"><div class="imh"><b>'+S7.esc(m.n||'?')+'</b>'+
+      (m.q?'<span class="imq">'+S7.esc(m.q)+'</span>':'')+'<span class="imt" data-ts="'+(m.ts||0)+'">'+ago(m.ts)+'</span></div>'+
+      '<p class="imb">'+S7.esc(m.t||'')+'</p>'+
+      '<div class="ima"><button type="button" class="btn small" data-reply="'+k+'">Reply and see board</button>'+
+      '<button type="button" class="btn small grey" data-done="'+k+'">Done</button></div></li>';
+  }).join('')+'</ol>';
+  box.querySelectorAll('[data-reply]').forEach(function(b){ b.onclick=function(){ var k=b.dataset.reply; seenAt[k]=Date.now(); paintInbox(); focusOn(k); }; });
+  box.querySelectorAll('[data-done]').forEach(function(b){ b.onclick=function(){ db.remove(base()+'/inbox/'+b.dataset.done); }; });
+}
+setInterval(function(){ document.querySelectorAll('.imt[data-ts]').forEach(function(e){ e.textContent=ago(+e.dataset.ts); }); }, 30000);
 
 /* ---------- drill down to one student ---------- */
 function focusOn(u){
@@ -250,6 +328,7 @@ function focusOn(u){
   f.innerHTML='<div class="focusbox"><div class="fhead"><b>'+S7.esc((students[u]||{}).n||'?')+'</b>'+
     (a.v!=null?'<span class="pill '+(a.c?'good':'bad')+'">'+S7.esc(a.v)+'</span>':'<span class="pill">no answer yet</span>')+
     '<span class="sp"></span><button type="button" class="btn small" id="fclose">Close</button></div>'+
+    (inbox[u]?'<div class="fnote"><span class="lab">Their message</span><p>'+S7.esc(inbox[u].t||'')+'</p></div>':'')+
     '<canvas id="fbd" class="fbd"></canvas>'+
     '<div class="ansrow"><label class="sr" for="fmsg">Note</label><input id="fmsg" class="inp" maxlength="120" autocomplete="off" placeholder="Send them a note"><button type="button" class="btn gold" id="fsend">Send</button></div>'+
     '<div class="quick">'+['Check your multiplier','Is that the whole or the part?','Divide, do not multiply','Nearly, check the rounding','Great work'].map(function(t){
@@ -258,7 +337,7 @@ function focusOn(u){
   var cv=document.getElementById('fbd');
   watchUnsub=db.on(base()+'/bd/'+u, function(strokes){ S7.paint(cv, strokes||[]); });
   document.getElementById('fclose').onclick=closeFocus;
-  document.getElementById('fsend').onclick=function(){ var v=document.getElementById('fmsg').value.trim(); if(v){ db.set(base()+'/msg/'+u,{t:v,ts:db.serverTime()}); toast('Sent'); document.getElementById('fmsg').value=''; } };
+  document.getElementById('fsend').onclick=function(){ var v=document.getElementById('fmsg').value.trim(); if(v){ db.set(base()+'/msg/'+u,{t:v,ts:db.serverTime()}); toast('Sent to '+((students[u]||inbox[u]||{}).n||'them')); document.getElementById('fmsg').value=''; } };
   f.querySelectorAll('[data-q]').forEach(function(b){ b.onclick=function(){ db.set(base()+'/msg/'+u,{t:b.dataset.q,ts:db.serverTime()}); toast('Sent'); }; });
   document.getElementById('fkick').onclick=function(){ db.remove(base()+'/st/'+u); closeFocus(); };
   document.getElementById('fmsg').addEventListener('keydown',function(e){ if(e.key==='Enter') document.getElementById('fsend').click(); });
@@ -271,7 +350,7 @@ function closeFocus(){
 
 function resetAll(){
   if(!confirm('Clear every student, answer and note for this session?')) return;
-  ['st','an','msg','req','bd'].forEach(function(k){ db.remove(base()+'/'+k); });
+  ['st','an','msg','req','bd','inbox'].forEach(function(k){ db.remove(base()+'/'+k); });
   students={}; answers={}; nStud=0; countsDirty();
   toast('Cleared');
 }

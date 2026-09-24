@@ -550,6 +550,108 @@ body.teacher #main > .tbar{margin-top:0}
 .eyebrow i{display:none}
 
 /* ==========================================================================
+   v3: question panel, on/off switches, messages
+   ========================================================================== */
+/* switches in the teacher bar: impossible to misread */
+.tog{display:inline-flex;align-items:center;gap:10px;min-height:40px;padding:0 12px 0 8px;border-radius:var(--r);
+  background:#fff;border:1.5px solid var(--line-2);color:var(--ink);font-size:14px;font-weight:600;transition:background .15s,border-color .15s}
+.tog i{position:relative;width:38px;height:22px;border-radius:11px;background:var(--line-2);flex:none;transition:background .2s}
+.tog i::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s var(--ease)}
+.tog .ts{min-width:62px;padding:3px 8px;border-radius:2px;font-size:12.5px;font-weight:600;letter-spacing:.02em;text-align:center;background:var(--paper);color:var(--ink-2)}
+.tog:hover{border-color:var(--deep)}
+.tog.on{background:#F1FEFA;border-color:var(--green-ink)}
+.tog.on i{background:var(--green-ink)}
+.tog.on i::after{transform:translateX(16px)}
+.tog.on .ts{background:var(--green-ink);color:#fff}
+
+/* two columns on a laptop: the lesson on the left, messages on the right */
+.dgrid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.dmain{min-width:0}
+.dside{position:sticky;top:calc(var(--top) + env(safe-area-inset-top) + 76px);margin-top:18px}
+@media (max-width:1100px){ .dgrid{grid-template-columns:1fr} .dside{position:static;order:-1} }
+
+/* the question the students are looking at */
+.qpanel{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(240px,1fr);gap:0;margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);overflow:hidden}
+.qpanel.grid,.qpanel.idle{display:block;padding:16px 18px}
+.qp-main{padding:18px 20px}
+.qp-k{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.qp-k .lab{color:var(--deep)}
+.qp-t{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.qpanel.grid .qp-t,.qpanel.idle .qp-t{font-weight:400;color:var(--ink-2);font-size:15px}
+.qp-q{font-size:17px;line-height:1.5}
+.qp-svg{margin-top:12px;text-align:center}
+.qp-svg svg{max-width:100%;height:auto;max-height:220px}
+.qp-svg svg text{font-family:var(--font)}
+.qp-side{display:flex;flex-direction:column;gap:12px;padding:18px 20px;background:var(--deep-06);border-left:1px solid var(--line)}
+.qp-ans{display:flex;flex-direction:column;gap:6px;padding:12px 14px;background:var(--deep);color:#fff;border-radius:var(--r)}
+.qp-ans .lab{color:rgba(255,255,255,.7)}
+.qp-ans .v{font-size:22px;font-weight:500}
+.qp-rev{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:500;color:var(--ink-2)}
+.qp-rev::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--grey);flex:none}
+.qp-rev.on{color:var(--green-ink)}
+.qp-rev.on::before{background:var(--green-ink);box-shadow:0 0 0 3px rgba(11,110,80,.18)}
+.qpanel.grid .qp-rev{margin:0 0 12px}
+.qp-ext{padding-top:12px;border-top:1px solid var(--line-2);font-size:14.5px;line-height:1.45}
+.qp-ext .lab{display:block;margin-bottom:6px}
+.qp-ea{margin-top:8px;font-weight:500}
+.qp-ea .lab{display:inline;margin-right:6px}
+@media (max-width:760px){ .qpanel{grid-template-columns:1fr} .qp-side{border-left:0;border-top:1px solid var(--line)} }
+.gqs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.gq{display:flex;flex-direction:column;gap:6px;padding:10px 12px;text-align:left;background:var(--paper);border:1px solid transparent;border-radius:var(--r);font-size:13.5px;line-height:1.4;cursor:pointer}
+.gq:hover{border-color:var(--deep);background:#fff}
+.gqn{font-weight:600;color:var(--deep);font-size:13px}
+.gqn em{font-style:normal;font-weight:400;color:var(--ink-2);margin-left:4px}
+.gqq{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.gq.open .gqq{display:block}
+.gqa{margin-top:auto;font-weight:600}
+.gqa .lab{font-size:11px;margin-right:4px;color:var(--green-ink)}
+
+/* messages from students */
+.mailchip{cursor:pointer}
+.mailchip.new{background:var(--orange);border-color:var(--orange)}
+@media (prefers-reduced-motion:no-preference){ .mailchip.new{animation:nudge 2.4s var(--ease) infinite} }
+@keyframes nudge{0%,80%,100%{transform:none}85%{transform:translateY(-2px)}90%{transform:none}95%{transform:translateY(-1px)}}
+.inbox{padding:14px 16px;background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);max-height:calc(100vh - 180px);overflow:auto;overscroll-behavior:contain}
+.ihead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ihead .lab{color:var(--deep)}
+.badge{display:inline-flex;align-items:center;height:22px;padding:0 8px;font-size:12px;font-weight:600;color:#fff;background:var(--orange);border-radius:2px}
+.inbox .muted{font-size:14px}
+.ilist{list-style:none;display:flex;flex-direction:column;gap:8px}
+.im{padding:10px 12px;background:var(--paper);border-radius:var(--r);border-left:3px solid transparent}
+.im.new{background:#FFF5F3;border-left-color:var(--orange)}
+.imh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:14px}
+.imh b{font-weight:600}
+.imq{font-size:12px;color:var(--ink-2)}
+.imt{margin-left:auto;font-size:12px;color:var(--ink-3)}
+.imb{margin:6px 0 8px;font-size:15px;line-height:1.4;overflow-wrap:anywhere}
+.ima{display:flex;gap:6px;flex-wrap:wrap}
+.ima .btn.small{min-height:32px;font-size:13px;padding:0 10px}
+.rw.has-msg .nm::after{content:"";display:inline-block;width:14px;height:12px;margin-left:6px;vertical-align:-1px;background:var(--orange);
+  -webkit-mask:var(--i-chat) center/contain no-repeat;mask:var(--i-chat) center/contain no-repeat}
+.fnote{margin-bottom:12px;padding:10px 12px;background:#FFF5F3;border-left:3px solid var(--orange);border-radius:var(--r)}
+.fnote p{margin-top:4px;font-size:15px}
+
+/* student: the message button and its little panel */
+.askbtn{position:fixed;z-index:45;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));
+  display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px 0 14px;font-size:14.5px;font-weight:600;color:#fff;
+  background:var(--deep);border-radius:22px;box-shadow:var(--shadow-2);transition:transform .15s var(--ease),background .15s}
+.askbtn::before{content:"";width:18px;height:16px;background:currentColor;-webkit-mask:var(--i-chat) center/contain no-repeat;mask:var(--i-chat) center/contain no-repeat}
+.askbtn:hover{background:var(--deep-lo);transform:translateY(-1px)}
+.ask{position:fixed;z-index:46;right:max(16px,env(safe-area-inset-right));bottom:calc(max(16px,env(safe-area-inset-bottom)) + 56px);
+  width:min(360px,calc(100vw - 32px));padding:16px;background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-3);border-top:4px solid var(--deep)}
+.askh{display:flex;align-items:center;justify-content:space-between}
+.askh b{font-size:17px;font-weight:600}
+.askx{width:36px;height:36px;margin:-6px -6px 0 0;font-size:24px;line-height:1;color:var(--ink-2);border-radius:var(--r)}
+.askx:hover{background:var(--deep-06)}
+.askp{font-size:14px;color:var(--ink-2);margin:2px 0 10px}
+.ask textarea.inp{min-height:84px;padding:10px 12px;font-size:16px;font-weight:400;resize:none;line-height:1.4}
+.askf{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.askf .muted{font-size:13px}
+@media (prefers-reduced-motion:no-preference){ .ask:not([hidden]){animation:rise .25s var(--ease) both} }
+@media (max-width:420px){ .askbtn{padding:0 14px;font-size:14px} }
+:root{--i-chat:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 22'%3E%3Cpath d='M2 2h20v14H9l-5 5v-5H2z' fill='%23000'/%3E%3C/svg%3E")}
+
+/* ==========================================================================
    Icons, as masks so they take the colour of whatever they sit in
    ========================================================================== */
 :root{
@@ -567,3 +669,8 @@ body.teacher #main > .tbar{margin-top:0}
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
 @media print{ .top,.tools,.ansrow,#toast,.note{display:none!important} .band{clip-path:none} }
+body:has(.stage) .askbtn{background:#fff;color:var(--deep)}
+body:has(.stage) .askbtn:hover{background:#F2E8F2}
+/* keep the last line of every screen clear of the message button */
+body:has(#askbtn:not([hidden])) .stage{padding-bottom:calc(clamp(32px,8vh,96px) + 64px + env(safe-area-inset-bottom))}
+body:has(#askbtn:not([hidden])) .wrap{padding-bottom:calc(96px + env(safe-area-inset-bottom))}

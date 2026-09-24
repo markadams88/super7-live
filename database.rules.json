@@ -18,7 +18,11 @@
                     "x":  { ".validate": "newData.isNumber()" } } } },
           "msg": { "$uid": { "t": { ".validate": "newData.isString() && newData.val().length <= 120" } } },
           "req": { "$uid": { ".validate": "newData.isNumber() || newData.isString()" } },
-          "bd":  { "$uid": { ".validate": "newData.hasChildren() || newData.val() == null" } }
+          "bd":  { "$uid": { ".validate": "newData.hasChildren() || newData.val() == null" } },
+          "inbox": { "$uid": {
+                    "n":  { ".validate": "newData.isString() && newData.val().length <= 24" },
+                    "t":  { ".validate": "newData.isString() && newData.val().length <= 140" },
+                    "q":  { ".validate": "newData.isString() && newData.val().length <= 24" } } }
         }
       }
     }

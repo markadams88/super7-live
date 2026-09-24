@@ -44,6 +44,14 @@
 <div id="demo" class="demo" style="display:none">Local demo mode: this browser only. Add the Firebase config to go live.</div>
 <div class="note" id="note" role="alert"><div><span class="who">Mr Adams says</span><span id="notetext"></span></div><button type="button" class="btn small grey" id="noteok">OK</button></div>
 <main id="main"><div class="boot" aria-label="Connecting"><i></i></div></main>
+<button type="button" class="askbtn" id="askbtn" hidden aria-haspopup="dialog">Message Mr Adams</button>
+<div class="ask" id="ask" role="dialog" aria-modal="false" aria-labelledby="askh" hidden>
+  <div class="askh"><b id="askh">Message Mr Adams</b><button type="button" class="askx" id="askx" aria-label="Close">&times;</button></div>
+  <p class="askp">Stuck, or want to say something? Only Mr Adams sees this.</p>
+  <label class="sr" for="asktxt">Your message</label>
+  <textarea id="asktxt" class="inp" maxlength="140" rows="3" placeholder="For example, I don't get where the 1.2 came from"></textarea>
+  <div class="askf"><span class="muted" id="askn">140 left</span><button type="button" class="btn gold" id="asksend">Send</button></div>
+</div>
 <div id="toast" role="status" aria-live="polite"></div>
 <noscript><div class="demo">Super 7 Live needs JavaScript switched on.</div></noscript>
 
@@ -83,7 +91,7 @@ function clearSubs(a){ a.forEach(function(u){ try{u();}catch(e){} }); a.length=0
 /* ---------- 1. which session is live ---------- */
 db.on('s7/current', function(cur){
   var want=S7.param('s', cur);
-  if(!want){ sid=null; renderIdle(); return; }
+  if(!want){ sid=null; document.getElementById('askbtn').hidden=true; document.getElementById('ask').hidden=true; renderIdle(); return; }
   if(want!==sid){ sid=want; joinSession(); }
 });
 function renderIdle(){
@@ -125,7 +133,7 @@ function renderJoin(){
   document.getElementById('go').onclick=go;
   i.addEventListener('keydown',function(e){ if(e.key==='Enter') go(); });
 }
-document.getElementById('who').onclick=function(){ try{ localStorage.removeItem('s7name'); }catch(e){} name=null; renderJoin(); };
+document.getElementById('who').onclick=function(){ try{ localStorage.removeItem('s7name'); }catch(e){} name=null; document.getElementById('askbtn').hidden=true; document.getElementById('ask').hidden=true; renderJoin(); };
 
 /* Claim our place in the room. onDisconnect removes it if this page goes away,
    so it has to be re-claimed every time the connection comes back: without that
@@ -146,6 +154,28 @@ function register(){
   perStudent.push(db.on(base()+'/state', function(s){ state=s||{mode:'lobby'}; render(); }));
   perStudent.push(db.on(base()+'/msg/'+uid, function(m){ if(m&&m.t) showNote(m.t); }));
   perStudent.push(db.on(base()+'/req/'+uid, function(r){ if(r) sendBoard(r); else stopBoard(); }));
+  document.getElementById('askbtn').hidden=false;
+}
+
+/* ---------- a short note to Mr Adams ----------
+   One slot per student, so a new note replaces their last one and nobody can
+   flood the teacher's screen. A 20 second gap between sends keeps it sensible. */
+var ask=document.getElementById('ask'), askbtn=document.getElementById('askbtn'), asktxt=document.getElementById('asktxt'), lastAsk=0;
+function openAsk(){ ask.hidden=false; askbtn.setAttribute('aria-expanded','true'); setTimeout(function(){ asktxt.focus(); },30); }
+function closeAsk(){ ask.hidden=true; askbtn.setAttribute('aria-expanded','false'); askbtn.focus(); }
+askbtn.onclick=function(){ ask.hidden?openAsk():closeAsk(); };
+document.getElementById('askx').onclick=closeAsk;
+asktxt.addEventListener('input',function(){ document.getElementById('askn').textContent=(140-asktxt.value.length)+' left'; });
+asktxt.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendAsk(); } if(e.key==='Escape') closeAsk(); });
+document.getElementById('asksend').onclick=sendAsk;
+function sendAsk(){
+  var t=asktxt.value.replace(/\s+/g,' ').trim(); if(!t){ toast('Type your message first'); return; }
+  if(!sid||!name){ toast('Join the session first'); return; }
+  var wait=20-Math.round((Date.now()-lastAsk)/1000); if(wait>0){ toast('Give it '+wait+' seconds, then send again'); return; }
+  var where=state&&state.mode==='youdo'?('You do '+state.key):(state&&state.mode==='grid'?'The twelve':'Lobby');
+  db.set(base()+'/inbox/'+uid, {n:name, t:t.slice(0,140), q:where, ts:db.serverTime()});
+  lastAsk=Date.now(); asktxt.value=''; document.getElementById('askn').textContent='140 left';
+  closeAsk(); toast('Sent. Mr Adams will see it on his screen.');
 }
 
 /* ---------- a note from the teacher ---------- */
