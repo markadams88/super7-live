@@ -89,7 +89,8 @@ S7.openDB=function(){
 
 /* ============================================================
    Answer checking
-   answer: {value:number|string, unit?, accept?:[...], tol?:number, kind?:'ratio'}
+   answer: {value:number|string, unit?, accept?:[...], tol?:number, kind?:'ratio', strict?:true}
+   strict: use tol only, with no 0.2% relative slack (money to the penny, years)
    ============================================================ */
 function norm(s){ return String(s==null?'':s).toLowerCase().replace(/\s+/g,'').replace(/£|€|\$/g,'').replace(/,/g,''); }
 function stripUnits(s){ return s.replace(/(cm|mm|m|km|ml|l|litres?|liters?|kg|g|km\/h|m\/s|mph|degrees?|°|%|²|³|\^2|\^3|squared|cubed|units?)+$/,''); }
@@ -112,11 +113,11 @@ S7.checkAnswer=function(ans, given){
     var r1=/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/.exec(g), r2=/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/.exec(want);
     if(r1&&r2){ return Math.abs(parseFloat(r1[1])/parseFloat(r1[2]) - parseFloat(r2[1])/parseFloat(r2[2]))<1e-6; }
     var gn=toNumber(g), wn=toNumber(want);
-    if(!isNaN(gn)&&!isNaN(wn)) return Math.abs(gn-wn)<=Math.max(ans.tol||0, Math.abs(wn)*0.002, 0.005);
+    if(!isNaN(gn)&&!isNaN(wn)) return Math.abs(gn-wn)<=(ans.strict?(ans.tol||0.005):Math.max(ans.tol||0, Math.abs(wn)*0.002, 0.005));
     return false;
   }
   var n=toNumber(g); if(isNaN(n)) return false;
-  var tol=Math.max(ans.tol||0, Math.abs(ans.value)*0.002, 0.005);
+  var tol=ans.strict?(ans.tol||0.005):Math.max(ans.tol||0, Math.abs(ans.value)*0.002, 0.005);
   return Math.abs(n-ans.value)<=tol;
 };
 
