@@ -22,7 +22,7 @@
 <div class="wrap">
   <div class="card">
     <p class="lab" style="color:var(--deep)">What this does</p>
-    <p class="muted" style="margin:8px 0 14px">It opens real database connections, one per pretend student, writes a name and an answer for each, then closes them all. Firebase allows 100 at once on the free plan and 200,000 on Blaze, so this is the quickest way to prove which plan you are actually on. It writes to a throwaway session and never touches a live one.</p>
+    <p class="muted" style="margin:8px 0 14px">It opens real database connections, one per pretend student, writes a name and an answer for each, then closes them all. Firebase allows 100 at once on the free plan and 200,000 on Blaze, so this is the quickest way to prove which plan you are actually on. One browser can only hold about 100 fast connections, so past that point the rest queue up and connect slowly. That is a limit of running the test from one computer, not of the app: in a real session every student is on their own device. So the thing to look at is whether it gets past 100 at all. The free plan never can. The test runs for a minute, and it writes to a throwaway session and never touches a live one.</p>
     <div class="ansrow"><input id="n" class="inp" type="number" value="500" min="10" max="2000"><button type="button" class="btn gold" id="go">Run the test</button><button type="button" class="btn grey" id="stop">Close them all</button></div>
     <div id="out" style="margin-top:14px"></div>
     <div class="tally" id="tiles" style="margin-top:14px"></div>
@@ -45,7 +45,7 @@ document.getElementById('go').onclick=function(){
   if(!window.S7_FIREBASE){ say('No Firebase config on this copy, so there is nothing to connect to.'); return; }
   var N=Math.max(10,Math.min(2000,+document.getElementById('n').value||500));
   running=true; connected=0; failed=0; written=0; t0=performance.now(); pill.textContent='running';
-  say('Opening '+N+' connections. Watch the numbers. If it stalls at about 100 you are still on the free Spark plan.');
+  say('Opening '+N+' connections. Watch the numbers. It will slow down after about 100, that is the browser, not the database. Give it the full minute.');
   var timer=setInterval(paint,200);
   for(var i=0;i<N;i++) (function(i){
     setTimeout(function(){
@@ -67,9 +67,9 @@ document.getElementById('go').onclick=function(){
   setTimeout(function(){
     clearInterval(timer); paint(); running=false; pill.textContent='done';
     out.innerHTML='<p class="muted"><b>'+connected+' of '+N+'</b> connected and <b>'+written+'</b> managed to write an answer.'+
-      (connected<N*0.9?' That is short of the target. If it stopped near 100, upgrade the Firebase project to the Blaze plan and run this again.':' That is the whole set, so the project is on a plan that can take the load.')+
+      (connected>100?' That is more than the free plan ever allows, so the project is on Blaze and the database will take a full room. The slowdown after about 100 is this one browser queueing its connections, which does not happen when every student is on their own phone or laptop.':' It did not get past 100, so the project is still on the free Spark plan. Upgrade it to Blaze in the Firebase console and run this again.')+
       ' Press <b>Close them all</b> when you are done, then delete the <code>'+sid+'</code> session from the database.</p>';
-  }, Math.max(12000, N*6+9000));
+  }, Math.max(60000, N*6+9000));
 };
 document.getElementById('stop').onclick=function(){
   apps.forEach(function(a){ try{ a.database().goOffline(); a.delete(); }catch(e){} });
