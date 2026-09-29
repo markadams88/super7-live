@@ -455,9 +455,14 @@ body.teacher #main > .tbar{margin-top:0}
 .ydgroup .btn.small:last-of-type{border-radius:0 var(--r) var(--r) 0}
 .ydgroup .btn.small.on{position:relative;z-index:1}
 .ydgroup + .btn{margin-left:4px}
+.wkpick{display:inline-flex;align-items:center;gap:8px;padding-right:12px;margin-right:2px;border-right:1px solid var(--line-2)}
+.wkpick .lab{white-space:nowrap}
+.inp.small{min-height:36px;width:auto;max-width:280px;font-size:14px;font-weight:600;padding:0 36px 0 12px;background-position:right 12px center;background-size:12px}
 @media (max-width:760px){
   .tbar{position:static;background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;padding-top:4px}
   .ydgroup{order:-1;width:100%;padding-left:0;margin-left:0;border-left:0;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .wkpick{order:-2;width:100%;border-right:0;padding-right:0}
+  .wkpick .inp.small{flex:1;max-width:none}
   .ydgroup::-webkit-scrollbar{display:none}
   .ydgroup .btn.small{flex:1 0 40px}
   .tally{grid-template-columns:1fr 1fr;gap:8px}
@@ -597,12 +602,12 @@ body.teacher #main > .tbar{margin-top:0}
 .qp-ea .lab{display:inline;margin-right:6px}
 @media (max-width:760px){ .qpanel{grid-template-columns:1fr} .qp-side{border-left:0;border-top:1px solid var(--line)} }
 .gqs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
-.gq{display:flex;flex-direction:column;gap:6px;padding:10px 12px;text-align:left;background:var(--paper);border:1px solid transparent;border-radius:var(--r);font-size:13.5px;line-height:1.4;cursor:pointer}
-.gq:hover{border-color:var(--deep);background:#fff}
+.gqs .gq{display:flex;flex-direction:column;gap:6px;padding:10px 12px;text-align:left;background:var(--paper);border:1px solid transparent;border-radius:var(--r);font-size:13.5px;line-height:1.4;cursor:pointer}
+.gqs .gq:hover{border-color:var(--deep);background:#fff}
 .gqn{font-weight:600;color:var(--deep);font-size:13px}
 .gqn em{font-style:normal;font-weight:400;color:var(--ink-2);margin-left:4px}
 .gqq{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.gq.open .gqq{display:block}
+.gqs .gq.open .gqq{display:block}
 .gqa{margin-top:auto;font-weight:600}
 .gqa .lab{font-size:11px;margin-right:4px;color:var(--green-ink)}
 
@@ -686,3 +691,32 @@ body:has(#askbtn:not([hidden])) .wrap{padding-bottom:calc(96px + env(safe-area-i
 .fsheet{display:inline-block;margin-top:8px;padding:4px 12px;border:1.5px solid currentColor;border-radius:6px;font-size:.88em;opacity:.9}
 .extcard .sol .solinner{color:var(--ink)}
 .extcard .sol .solinner .step span:last-child{color:var(--ink)}
+
+/* v5: a link out of the waiting and finished screens */
+.stage .stagelink{margin-top:clamp(20px,3.5vh,32px)}
+.stage .stagelink .btn{display:inline-flex;text-decoration:none}
+
+/* v5: practise any week */
+a.chip{text-decoration:none;transition:background .15s}
+a.chip:hover{background:rgba(255,255,255,.18)}
+.practice .band .pb{flex:1;min-width:0}
+.practice .wkinp{max-width:560px;margin-top:4px;font-size:clamp(1.1rem,1rem + .6vw,1.45rem);font-weight:650;min-height:56px;border-color:transparent}
+.practice .wkinp:focus{border-color:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.28)}
+.pnav{position:relative;z-index:2;display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;margin:0 0 18px;padding:12px 14px;
+  background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+.pnav .pqs{display:inline-flex;flex-wrap:wrap;gap:6px}
+.pq{position:relative;min-width:40px;height:40px;padding:0 10px;font-size:15px;font-weight:600;color:var(--ink);
+  background:#fff;border:1.5px solid var(--line-2);border-radius:var(--r);transition:border-color .15s,background .15s}
+.pq:hover{border-color:var(--deep);background:var(--deep-06)}
+.pq.on{background:var(--deep);border-color:var(--deep);color:#fff}
+.pq.wide{margin-left:auto;padding:0 14px}
+.pq.done::after{content:"";position:absolute;top:-5px;right:-5px;width:14px;height:14px;border-radius:50%;background:var(--green-ink) var(--i-tick) center/9px no-repeat;border:2px solid #fff}
+.pq.star::after{background-color:var(--pink)}
+.prow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.pnext{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:28px;padding-top:18px;border-top:1px solid var(--line)}
+.gcell.done{border-color:var(--green-ink)}
+@media (max-width:640px){
+  .pnav .lab{width:100%}
+  .pq.wide{margin-left:0;flex:1 0 100%}
+  .pnext .btn{flex:1}
+}

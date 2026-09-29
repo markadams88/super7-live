@@ -64,6 +64,14 @@ which tells you what to reteach before you say a word. Under that, every student
 with a tick, a cross or a star. Click any name to watch that student's board live, send
 them a note, or remove them.
 
+**Any week, any time** (`practice.html`). Every week that has run stays on the site. Students
+pick a week from the drop-down and work through its You dos, extensions (with hints) and
+the twelve, with answers checked on the page and a worked solution for every question.
+Nothing is written to the database, so it can never interfere with a live session. A week
+appears there from 6pm on the Monday it runs. `practice.html?preview=1` shows every week,
+including ones not yet open to students. The student page links to it from the waiting
+screen and the finished screen.
+
 ## Running a session
 
 1. Open `teacher.html`, enter the PIN, choose the week, press **Start session**.
@@ -73,10 +81,15 @@ them a note, or remove them.
    **Reveal solution** when you go through it on the deck.
 5. On The twelve: **Show answers** after the session, **Show solutions** for the full working.
 6. **Reset** wipes every student, answer, note and board for that session.
+7. **Week** drop-down (far left of the toolbar) moves everyone to another week straight
+   away. Students do not retype their names. Each week keeps its own session, so going back
+   to a week you ran earlier the same evening (within six hours, same browser) picks it up
+   where you left it, answers and all.
 
 ## Files
 
-- `index.html` student screen, `teacher.html` teacher screen, `loadtest.html` connection test
+- `index.html` student screen, `teacher.html` teacher screen, `practice.html` any week for
+  revision, `loadtest.html` connection test
 - `shared.js` sync layer (Firebase or a local demo store), answer checking, the drawing board
 - `app.css` all the styling
 - `firebase-config.js` project config and the teacher PIN
@@ -89,9 +102,9 @@ them a note, or remove them.
 ```
 s7/current                     the session id that is live
 s7/sessions/<sid>/meta         {pack, started}
-s7/sessions/<sid>/state        {mode, key, reveal, gridAns, gridSol}
+s7/sessions/<sid>/state        {mode, key, reveal, extSol, gridAns, gridSol}
 s7/sessions/<sid>/st/<uid>     {n:name}            presence, removed on disconnect
-s7/sessions/<sid>/an/<q>/<uid> {n,v,c,x}           answer, correct, extension done
+s7/sessions/<sid>/an/<q>/<uid> {n,v,c,x,xv,h}       answer, correct, extension done, extension answer, hint opened
 s7/sessions/<sid>/msg/<uid>    {t:text}            a note from you to one student
 s7/sessions/<sid>/req/<uid>    <question number>   you are watching this student
 s7/sessions/<sid>/bd/<uid>     strokes             only while you are watching

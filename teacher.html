@@ -61,7 +61,8 @@ var db=S7.openDB(), main=document.getElementById('main');
 if(db.kind==='local') document.getElementById('demo').style.display='block';
 
 var booted=false;
-var sid=null, pack=null, state={mode:'lobby'}, students={}, answers={}, ansUnsub=null, watching=null, watchUnsub=null;
+var sid=null, pack=null, packId=null, state={mode:'lobby'}, students={}, answers={}, ansUnsub=null, watching=null, watchUnsub=null;
+var sessUnsubs=[], attachedSid=null;
 var nStud=0, inbox={}, seenAt={};
 addEventListener('scroll',function(){ document.body.classList.toggle('scrolled', scrollY>4); },{passive:true});
 document.addEventListener('keydown',function(e){ if(e.key==='Escape' && watching) closeFocus(); });
@@ -103,38 +104,83 @@ function renderSetup(){
     title:'Which <span class="hl">week?</span>',
     lede:'Students all use the same link every week, so there is nothing to send round.',
     body:'<div class="form"><label class="sr" for="pk">Week</label><select id="pk" class="inp">'+opts+'</select>'+
-      '<button type="button" class="btn gold arrow" id="start">Start</button></div>'
+      '<button type="button" class="btn gold arrow" id="start">Start</button></div>'+
+      '<p class="hint">You can switch week at any time from the dashboard. To look through any week, questions and solutions, open <a href="practice.html?preview=1" target="_blank" rel="noopener" style="color:#fff">the practice page</a>.</p>'
   });
   var pk=document.getElementById('pk'); if(pk.options.length) pk.selectedIndex=pk.options.length-1;
-  document.getElementById('start').onclick=function(){
-    var p=document.getElementById('pk').value;
+  document.getElementById('start').onclick=function(){ startWeek(document.getElementById('pk').value); };
+}
+
+/* ---------- switching week ----------
+   Every week keeps its own session. Going back to a week you ran earlier this
+   evening (in this browser) picks it up exactly where you left it, answers and
+   all. Otherwise a fresh session starts in the lobby. Students follow on their
+   own, because their page listens to s7/current and remembers their name. */
+var RECENT_KEY='s7recent', RECENT_HOURS=6;
+function recent(){ try{ return JSON.parse(localStorage.getItem(RECENT_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function remember(p,id){ try{ var r=recent(); r[p]={id:id,t:Date.now()}; localStorage.setItem(RECENT_KEY, JSON.stringify(r)); }catch(e){} }
+function startWeek(p){
+  var r=recent()[p];
+  var reuse=(r && r.id && (Date.now()-r.t) < RECENT_HOURS*3600*1000) ? db.get('s7/sessions/'+r.id+'/meta') : Promise.resolve(null);
+  return reuse.then(function(meta){
+    if(meta && meta.pack===p){ remember(p, r.id); return db.set('s7/current', r.id); }
     var id=p+'-'+Date.now().toString(36);
-    db.set('s7/sessions/'+id+'/meta',{pack:p,started:db.serverTime()})
+    remember(p, id);
+    return db.set('s7/sessions/'+id+'/meta',{pack:p,started:db.serverTime()})
       .then(function(){ return db.set('s7/sessions/'+id+'/state',{mode:'lobby',key:0,reveal:0,extSol:0,gridAns:0,gridSol:0}); })
       .then(function(){ return db.set('s7/current', id); });
+  }).catch(function(e){ console.error(e); toast('Could not switch week. Check the connection and try again.'); });
+}
+function weekPicker(){
+  var opts=S7.packList().map(function(p){ var k=S7.pack(p);
+    return '<option value="'+p+'"'+(p===packId?' selected':'')+'>'+S7.esc(k?k.title:p)+'</option>'; }).join('');
+  return '<span class="wkpick"><label class="lab" for="wk">Week</label><select id="wk" class="inp small">'+opts+'</select></span>';
+}
+function wireWeekPicker(){
+  var w=document.getElementById('wk'); if(!w) return;
+  w.onchange=function(){
+    var p=w.value, k=S7.pack(p);
+    if(p===packId) return;
+    if(!confirm('Move everyone to '+(k?k.title:p)+'?\n\nStudents go straight there without typing their name again. This week\'s answers are kept, and you can come back to it from this list.')){ w.value=packId; return; }
+    w.disabled=true;
+    startWeek(p).then(function(){ w.disabled=false; });
   };
 }
 
+/* drop every listener from the last session, so switching week never leaves
+   the old one feeding this screen */
+function detach(){
+  sessUnsubs.forEach(function(u){ try{ u(); }catch(e){} }); sessUnsubs=[];
+  if(ansUnsub){ ansUnsub(); ansUnsub=null; }
+  if(watchUnsub){ watchUnsub(); watchUnsub=null; }
+  if(watching && attachedSid){ db.remove('s7/sessions/'+attachedSid+'/req/'+watching); db.remove('s7/sessions/'+attachedSid+'/bd/'+watching); }
+  watching=null; var f=document.getElementById('focus'); if(f) f.innerHTML='';
+  students={}; answers={}; inbox={}; seenAt={}; nStud=0; shellMode=null; booted=false; state={mode:'lobby'};
+}
 function attach(){
+  detach();
+  var mySid=sid; attachedSid=sid;
   db.get(base()+'/meta').then(function(meta){
+    if(mySid!==sid) return;             /* switched again while this was loading */
     if(!meta){ renderSetup(); return; }
-    pack=S7.pack(meta.pack);
+    pack=S7.pack(meta.pack); packId=meta.pack;
+    remember(meta.pack, sid);
     document.getElementById('ttl').textContent=pack?pack.title:meta.pack;
-    students={}; answers={}; nStud=0;
-    db.on(base()+'/state', function(s){ state=s||{mode:'lobby'}; shell(); subscribeAnswers(); });
+    if(!pack){ main.innerHTML=S7.stage({kicker:'Super 7 Live', title:'Refresh <span class="hl">needed</span>', lede:'This session uses '+S7.esc(meta.pack)+', which this page has not loaded yet. Refresh the page.'}); return; }
+    sessUnsubs.push(db.on(base()+'/state', function(s){ state=s||{mode:'lobby'}; shell(); subscribeAnswers(); }));
     /* presence, one message per student joining or leaving */
-    db.onChild(base()+'/st', {
+    sessUnsubs.push(db.onChild(base()+'/st', {
       added:function(k,v){ if(!students[k]) nStud++; students[k]=v||{}; countsDirty(); },
       changed:function(k,v){ students[k]=v||{}; countsDirty(); },
       removed:function(k){ if(students[k]){ delete students[k]; nStud--; } countsDirty(); }
-    });
+    }));
     /* notes students send to you, one slot per student, newest replaces the last */
-    db.onChild(base()+'/inbox', {
+    sessUnsubs.push(db.onChild(base()+'/inbox', {
       added:function(k,v){ inbox[k]=v||{}; if(booted) toast('Message from '+((v&&v.n)||'a student')); inboxDirty(); },
       changed:function(k,v){ inbox[k]=v||{}; toast('Message from '+((v&&v.n)||'a student')); inboxDirty(); },
       removed:function(k){ delete inbox[k]; inboxDirty(); }
-    });
-    setTimeout(function(){ booted=true; }, 2500);
+    }));
+    setTimeout(function(){ if(mySid===sid) booted=true; }, 2500);
   });
 }
 function subscribeAnswers(){
@@ -161,7 +207,7 @@ function shell(){
     return '<button class="btn small'+(state.mode==='youdo'&&state.key===x.n?' on':'')+'" data-go="'+x.n+'">'+x.n+'</button>';
   }).join('');
   main.innerHTML=
-    '<div class="dash"><div class="tbar">'+
+    '<div class="dash"><div class="tbar">'+weekPicker()+
       '<button class="btn small'+(state.mode==='lobby'?' on':'')+'" data-mode="lobby">Lobby</button>'+
       '<span class="ydgroup"><span class="lab">You do</span>'+yd+'</span>'+
       '<button class="btn small'+(state.mode==='grid'?' on':'')+'" data-mode="grid">The twelve</button>'+
@@ -186,6 +232,7 @@ function shell(){
   var gs=document.getElementById('gs'); if(gs) gs.onclick=function(){ setState({gridSol: state.gridSol?0:1}); };
   main.querySelectorAll('.gq').forEach(function(b){ b.onclick=function(){ b.classList.toggle('open'); }; });
   document.getElementById('reset').onclick=resetAll;
+  wireWeekPicker();
   document.getElementById('find').addEventListener('input', paintRoster);
   S7.tex(main.querySelector('.qpanel')||document.createElement('div'));
   paintControls(); paintInbox(); paintCounts();

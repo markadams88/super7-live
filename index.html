@@ -91,16 +91,29 @@ function clearSubs(a){ a.forEach(function(u){ try{u();}catch(e){} }); a.length=0
 /* ---------- 1. which session is live ---------- */
 db.on('s7/current', function(cur){
   var want=S7.param('s', cur);
-  if(!want){ sid=null; document.getElementById('askbtn').hidden=true; document.getElementById('ask').hidden=true; renderIdle(); return; }
-  if(want!==sid){ sid=want; joinSession(); }
+  if(!want){ leaveSession(); sid=null; document.getElementById('askbtn').hidden=true; document.getElementById('ask').hidden=true; renderIdle(); return; }
+  if(want!==sid){ leaveSession(); sid=want; joinSession(); }
 });
+/* Mr Adams switched week: tidy up the old session so nothing from it
+   (answers, the open question, a pop-up) leaks into the new one */
+function leaveSession(){
+  if(!sid) return;
+  if(name) db.remove(base()+'/st/'+uid);
+  clearSubs(perStudent); stopBoard();
+  state=null; mine={}; onExt=false; extDone=false;
+  shown={mode:null,key:null,reveal:null,extSol:null,gridAns:null,gridSol:null};
+  document.querySelectorAll('.over').forEach(function(o){ o.remove(); });
+  document.body.style.overflow='';
+  noteEl.classList.remove('show');
+}
 function renderIdle(){
   statePill('not started');
   main.innerHTML=S7.stage({
     kicker:'Super 7 Live',
     title:'Nothing running <span class="hl">yet</span>',
     lede:'This page wakes up on its own when Mr Adams starts the session. Leave it open.',
-    body:'<div class="facts"><div><b>Every Monday</b>18:10 to 19:00</div><div><b>Live on Teams</b>with Mr Adams</div><div><b>Free</b>for every GCSE student</div></div>'
+    body:'<div class="facts"><div><b>Every Monday</b>18:10 to 19:00</div><div><b>Live on Teams</b>with Mr Adams</div><div><b>Free</b>for every GCSE student</div></div>'+
+      '<p class="stagelink"><a class="btn gold arrow" href="practice.html">Practise past weeks</a></p>'
   });
 }
 
@@ -238,7 +251,8 @@ function renderDone(){
     layout:'l3',
     kicker:'That is us for tonight',
     title:'Well done, <span class="hl">'+S7.esc(name||'everyone')+'</span>',
-    lede:(pack.next?pack.next.replace(/<[^>]+>/g,''):'See you next Monday at 18:10.')
+    lede:(pack.next?pack.next.replace(/<[^>]+>/g,''):'See you next Monday at 18:10.'),
+    body:'<p class="stagelink"><a class="btn gold arrow" href="practice.html?w='+encodeURIComponent(pack.id||'')+'">Go over tonight\'s questions again</a></p>'
   });
   S7.tex(main);
 }
@@ -275,6 +289,17 @@ function renderYouDo(){
   if(got.v) verdict(got.c);
   if(got.c) openExtension(true);
   paintSolution(); paintExtSolution();
+  /* after a refresh, or coming back to a week, pick up what this student already sent */
+  if(!got.v){ var k=state.key, s0=sid;
+    db.get(base()+'/an/'+k+'/'+uid).then(function(a){
+      if(!a || a.v==null || sid!==s0 || !state || state.mode!=='youdo' || state.key!==k || mine[k]) return;
+      mine[k]={v:a.v,c:a.c?1:0};
+      var i=document.getElementById('ans'); if(i && !i.value) i.value=a.v;
+      verdict(a.c);
+      if(a.c){ openExtension(true);
+        if(a.xv!=null){ var x=document.getElementById('extans'); if(x && !x.value) x.value=a.xv; extVerdict(!!a.x); } }
+    }).catch(function(){});
+  }
 }
 function submit(fromExt){
   var Q=q(state.key); if(!Q) return;

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Super 7 Live, practise any week</title>
+<meta name="description" content="Every Super 7 week, with answers checked as you go and a worked solution for each question.">
+<meta name="theme-color" content="#610064">
+<meta name="color-scheme" content="light">
+<meta name="format-detection" content="telephone=no">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Aston University Mathematics School">
+<meta property="og:title" content="Super 7 Live, practise any week">
+<meta property="og:description" content="Free online GCSE maths every Monday at 18:10, from Aston University Mathematics School.">
+<meta property="og:url" content="https://markadams88.github.io/super7-live/practice.html">
+<meta property="og:image" content="https://markadams88.github.io/super7-live/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="manifest" href="site.webmanifest">
+<link rel="preload" href="vendor/fonts/schibsted-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="vendor/katex.css">
+<link rel="stylesheet" href="app.css">
+<script src="vendor/katex.min.js"></script>
+<script src="vendor/auto-render.min.js"></script>
+<script src="packs/index.js"></script>
+<script src="shared.js"></script>
+</head>
+<body class="practice">
+<header class="top">
+  <a class="brand" href="./" aria-label="Super 7 Live home"><svg class="logo" aria-hidden="true"><use href="assets/brand.svg#aums"></use></svg></a>
+  <div class="prodname"><span class="p">Super 7 Live</span><span class="ttl" id="ttl">Practise any week</span></div>
+  <span class="sp"></span>
+  <a class="chip" href="./">Live session</a>
+</header>
+<main id="main"><div class="boot" aria-label="Loading"><i></i></div></main>
+<div id="toast" role="status" aria-live="polite"></div>
+<noscript><div class="demo">This page needs JavaScript switched on.</div></noscript>
+
+<script>
+/* ============================================================
+   Super 7 Live, practice.
+   Every week that has already run, on one page: pick a week, then any
+   You do, its extension, or the twelve. Answers are checked in the
+   browser only. Nothing is written to the database, so this page can
+   never interfere with a live session and costs nothing to run.
+   A week opens here at 6pm on the Monday it runs, just before the
+   live session, so nobody can work through it days early. ?preview=1 shows every week (teacher use).
+   ============================================================ */
+(function(){
+"use strict";
+var main=document.getElementById('main');
+var MONTHS=['january','february','march','april','may','june','july','august','september','october','november','december'];
+var preview=S7.param('preview','')==='1';
+var packId=null, pack=null, view=null;   /* view: number = You do n, 'grid' = the twelve */
+
+function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(function(){t.classList.remove('show');},2200); }
+addEventListener('scroll',function(){ document.body.classList.toggle('scrolled', scrollY>4); },{passive:true});
+
+/* when a week opens: 18:00 UK time on the date in its unit line */
+function opensAt(p){
+  var m=/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/.exec(p.unit||'');
+  if(!m) return 0;
+  var mo=MONTHS.indexOf(m[2].toLowerCase()); if(mo<0) return 0;
+  return new Date(+m[3], mo, +m[1], 18, 0, 0).getTime();
+}
+function isOpen(id){ var p=S7.pack(id); return !!p && (preview || opensAt(p)<=Date.now()); }
+function weeks(){ return S7.packList().filter(isOpen); }
+function whenText(p){ var t=opensAt(p); if(!t) return ''; var d=new Date(t);
+  return d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})+' at 6pm'; }
+
+/* what this browser has already got right, kept only on this device */
+var SAVE_KEY='s7practice', saved={};
+try{ saved=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}')||{}; }catch(e){ saved={}; }
+function mark(k,ok,v){ var w=saved[packId]=saved[packId]||{}; w[k]={c:ok?1:0,v:String(v).slice(0,40)}; try{ localStorage.setItem(SAVE_KEY, JSON.stringify(saved)); }catch(e){} }
+function got(k){ return ((saved[packId]||{})[k])||null; }
+
+/* ---------- start ---------- */
+var list=weeks();
+if(!list.length){
+  main.innerHTML=S7.stage({kicker:'Super 7 Live', title:'Nothing here <span class="hl">yet</span>',
+    lede:'Each week\'s questions appear here straight after the live session.'});
+  return;
+}
+var want=S7.param('w',''), q=S7.param('q','');
+if(want && S7.pack(want) && !isOpen(want)) toast(S7.pack(want).title.replace(/:.*/,'')+' opens here '+whenText(S7.pack(want)));
+openWeek(isOpen(want)?want:list[list.length-1], q==='grid'?'grid':(+q||1));
+
+function url(){
+  var s='?w='+encodeURIComponent(packId)+'&q='+(view==='grid'?'grid':view)+(preview?'&preview=1':'');
+  try{ history.replaceState(null,'',s); }catch(e){}
+}
+
+function openWeek(id, v){
+  packId=id; pack=S7.pack(id);
+  document.getElementById('ttl').textContent=pack.title;
+  document.title='Super 7 Live, '+pack.title;
+  var opts=weeks().map(function(p){ var k=S7.pack(p);
+    var lock=(preview && opensAt(k)>Date.now())?' (not open to students yet)':'';
+    return '<option value="'+p+'"'+(p===id?' selected':'')+'>'+S7.esc(k.title+lock)+'</option>'; }).join('');
+  var yd=(pack.youdo||[]).map(function(x){
+    return '<button type="button" class="pq" data-v="'+x.n+'" aria-label="You do '+x.n+'">'+x.n+'</button>'; }).join('');
+  main.innerHTML=
+    '<div class="band wide"><div class="band-in"><div class="pb">'+
+      '<p class="k">Practise any week</p>'+
+      '<label class="sr" for="wk">Choose a week</label><select id="wk" class="inp wkinp">'+opts+'</select>'+
+      '<p class="sub">Your answers are checked on this page and only you see them. Every question has a worked solution.</p>'+
+      (preview && opensAt(pack)>Date.now()?'<p class="sub"><b>Preview.</b> Students see this week from '+S7.esc(whenText(pack))+'.</p>':'')+
+    '</div></div></div>'+
+    '<div class="wrap wide">'+
+      '<nav class="pnav" aria-label="Questions"><span class="lab">You do</span><span class="pqs">'+yd+'</span>'+
+        '<button type="button" class="pq wide" data-v="grid">The twelve</button></nav>'+
+      '<div id="pv"></div>'+
+    '</div>';
+  document.getElementById('wk').onchange=function(){ openWeek(this.value, 1); scrollTo({top:0,behavior:'smooth'}); };
+  main.querySelectorAll('.pq').forEach(function(b){ b.onclick=function(){ show(b.dataset.v==='grid'?'grid':+b.dataset.v, true); }; });
+  var ok=(v==='grid') || (pack.youdo||[]).some(function(x){ return x.n===v; });
+  show(ok?v:1, false);
+}
+
+function paintNav(){
+  main.querySelectorAll('.pq').forEach(function(b){
+    var v=b.dataset.v==='grid'?'grid':+b.dataset.v;
+    b.classList.toggle('on', v===view);
+    b.setAttribute('aria-current', v===view?'true':'false');
+    var g=(v!=='grid')&&got('y'+v), x=(v!=='grid')&&got('x'+v);
+    b.classList.toggle('done', !!(g&&g.c)); b.classList.toggle('star', !!(x&&x.c));
+  });
+}
+
+function show(v, fromClick){
+  view=v; url(); paintNav();
+  var pv=document.getElementById('pv');
+  if(v==='grid') renderGrid(pv); else renderYouDo(pv, v);
+  if(fromClick){ var n=main.querySelector('.pnav'); if(n && n.getBoundingClientRect().top<0) n.scrollIntoView({behavior:'smooth',block:'start'}); }
+}
+
+function steps(list, fin, label){
+  return '<div class="solinner"><div class="lab">'+label+'</div>'+
+    (list||[]).map(function(st){ return '<div class="step"><span class="t">'+S7.esc(st.t)+'</span><span>'+st.m+'</span></div>'; }).join('')+
+    (fin?'<div class="final">'+fin+'</div>':'')+'</div>';
+}
+/* a Check button, a verdict, and a solution button that turns into Hide */
+function checker(root, id, ans, onResult){
+  var inp=root.querySelector('#'+id+'ans'), btn=root.querySelector('#'+id+'send');
+  function go(){
+    var v=(inp.value||'').trim(); if(!v){ toast('Type your answer first'); inp.focus(); return; }
+    var c=S7.checkAnswer(ans, v);
+    var d=root.querySelector('#'+id+'ver'); d.className='verdict '+(c?'ok':'no');
+    d.innerHTML=c?'<div><b>Correct.</b> Nicely done.</div>':'<div><b>Not quite.</b> Have another look, or open the worked solution.</div>';
+    onResult(c, v);
+  }
+  btn.onclick=go;
+  inp.addEventListener('keydown',function(e){ if(e.key==='Enter') go(); });
+}
+function solToggle(root, id, html){
+  var b=root.querySelector('#'+id+'solbtn'), s=root.querySelector('#'+id+'sol');
+  function set(open){ if(open && !s.innerHTML){ s.innerHTML=html; S7.tex(s); } s.hidden=!open;
+    b.setAttribute('aria-expanded', open?'true':'false'); b.textContent=open?'Hide the worked solution':'Show the worked solution'; }
+  b.onclick=function(){ set(s.hidden); };
+  return set;
+}
+
+/* ---------- one You do, with its extension ---------- */
+function renderYouDo(pv, n){
+  var Q=(pack.youdo||[]).filter(function(x){ return x.n===n; })[0]; if(!Q){ pv.innerHTML=''; return; }
+  var all=pack.youdo||[], g=got('y'+n)||{}, xg=got('x'+n)||{};
+  pv.innerHTML=
+    '<div class="qhead"><span class="tag">You do '+n+' of '+all.length+'</span><span class="muted">'+S7.esc(S7.subTitle(Q.sub)||'')+'</span></div>'+
+    '<div class="qtext" id="qt">'+Q.q+'</div>'+
+    (Q.svg?'<div class="qsvg">'+Q.svg+'</div>':'')+
+    '<div class="ansrow"><label class="sr" for="yans">Your answer</label><input id="yans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="Your answer" value="'+S7.esc(g.v||'')+'">'+
+      '<button type="button" class="btn gold" id="ysend">Check</button></div>'+
+    '<div id="yver" class="verdict"></div>'+
+    '<div class="prow"><button type="button" class="btn small grey" id="ysolbtn" aria-expanded="false">Show the worked solution</button>'+
+      (Q.ext?'<button type="button" class="btn small grey" id="xopen">Go to the extension</button>':'')+'</div>'+
+    '<div id="ysol" class="sol" hidden></div>'+
+    '<div id="xbox"></div>'+
+    '<div class="pnext">'+(n>1?'<button type="button" class="btn grey" data-to="'+(n-1)+'">Previous</button>':'<span></span>')+
+      '<button type="button" class="btn gold arrow" data-to="'+(n<all.length?n+1:'grid')+'">'+(n<all.length?'Next question':'On to the twelve')+'</button></div>';
+  S7.tex(document.getElementById('qt'));
+  var setSol=solToggle(pv,'y',steps(Q.steps,Q.final,'Worked solution'));
+  checker(pv,'y',Q.answer,function(c,v){ mark('y'+n,c,v); paintNav(); if(c) openExt(false); });
+  var xo=document.getElementById('xopen'); if(xo) xo.onclick=function(){ openExt(false); };
+  pv.querySelectorAll('[data-to]').forEach(function(b){ b.onclick=function(){ show(b.dataset.to==='grid'?'grid':+b.dataset.to, true); }; });
+  if(g.v){ var d=document.getElementById('yver'); d.className='verdict '+(g.c?'ok':'no');
+    d.innerHTML=g.c?'<div><b>Correct.</b> You got this one last time.</div>':'<div><b>Not quite</b> last time. Have another go.</div>'; }
+  if(g.c||xg.v) openExt(true);
+
+  function openExt(quiet){
+    if(!Q.ext) return;
+    var box=document.getElementById('xbox'); if(box.dataset.on){ if(!quiet) box.scrollIntoView({behavior:'smooth',block:'nearest'}); return; }
+    box.dataset.on='1'; if(xo) xo.hidden=true;
+    box.innerHTML='<div class="extcard"><div class="exthead"><span class="tag gold">Extension</span><span class="muted">One step deeper</span></div>'+
+      '<div class="qtext" id="xqt">'+Q.ext.q+'</div>'+
+      (Q.ext.svg?'<div class="qsvg">'+Q.ext.svg+'</div>':'')+
+      (Q.ext.hint?'<div class="hintrow"><button type="button" class="btn small grey" id="xhintbtn" aria-expanded="false">Show a hint</button><div class="hint" id="xhint" hidden></div></div>':'')+
+      '<div class="ansrow"><label class="sr" for="xans">Extension answer</label><input id="xans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="Extension answer" value="'+S7.esc(xg.v||'')+'">'+
+      '<button type="button" class="btn gold" id="xsend">Check</button></div><div id="xver" class="verdict"></div>'+
+      '<div class="prow"><button type="button" class="btn small grey" id="xsolbtn" aria-expanded="false">Show the worked solution</button></div>'+
+      '<div id="xsol" class="sol" hidden></div></div>';
+    S7.tex(document.getElementById('xqt'));
+    var hb=document.getElementById('xhintbtn');
+    if(hb) hb.onclick=function(){ var h=document.getElementById('xhint'), open=h.hidden;
+      if(open && !h.innerHTML){ h.innerHTML='<span class="lab">Hint</span> '+Q.ext.hint; S7.tex(h); }
+      h.hidden=!open; hb.setAttribute('aria-expanded',open?'true':'false'); hb.textContent=open?'Hide the hint':'Show a hint'; };
+    solToggle(box,'x',steps(Q.ext.steps,Q.ext.final,'Worked solution to the extension'));
+    checker(box,'x',Q.ext.answer,function(c,v){ mark('x'+n,c,v); paintNav(); });
+    if(xg.v){ var d=document.getElementById('xver'); d.className='verdict '+(xg.c?'ok':'no');
+      d.innerHTML=xg.c?'<div><b>Correct.</b> You got this one last time.</div>':'<div><b>Not quite</b> last time. Have another go.</div>'; }
+    if(!quiet) setTimeout(function(){ box.scrollIntoView({behavior:'smooth',block:'nearest'}); },200);
+  }
+}
+
+/* ---------- the twelve ---------- */
+function renderGrid(pv){
+  var cells=(pack.grid||[]).map(function(g){
+    var s=got('g'+g.n);
+    return '<button type="button" class="gcell'+(s&&s.c?' done':'')+'" data-g="'+g.n+'"><span class="gn">Question '+g.n+(g.marks?'<span class="mk"><span class="sr">, </span>&middot; '+g.marks+' mark'+(g.marks>1?'s':'')+'</span>':'')+'</span>'+
+      '<span class="gq">'+g.q+'</span>'+(g.svg?'<span class="gd">'+g.svg+'</span>':'')+(s&&s.c?'<span class="ga on">'+(g.a||'')+'</span>':'')+'</button>';
+  }).join('');
+  pv.innerHTML='<div class="qhead"><span class="tag">The twelve</span><span class="muted">Real exam questions, easiest first. Tap one to answer it.</span></div>'+
+    '<div class="ggrid">'+cells+'</div>'+
+    '<div class="pnext"><button type="button" class="btn grey" data-to="'+(pack.youdo||[]).length+'">Back to the You do questions</button><span></span></div>';
+  S7.tex(pv);
+  pv.querySelectorAll('.gcell').forEach(function(b){ b.onclick=function(){ openGridQ(+b.dataset.g); }; });
+  pv.querySelector('[data-to]').onclick=function(){ show(+this.dataset.to, true); };
+}
+function openGridQ(n){
+  var g=(pack.grid||[]).filter(function(x){return x.n===n;})[0]; if(!g) return;
+  var s=got('g'+n)||{};
+  var ov=document.createElement('div'); ov.className='over';
+  ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true'); ov.setAttribute('aria-label','Question '+n);
+  ov.innerHTML='<div class="overbox"><button type="button" class="x" aria-label="Close">&times;</button>'+
+    '<div class="qhead"><span class="tag">Question '+n+' of '+(pack.grid||[]).length+'</span>'+(g.marks?'<span class="muted">'+g.marks+' mark'+(g.marks>1?'s':'')+'</span>':'')+'</div>'+
+    '<div class="qtext">'+g.q+'</div>'+(g.svg?'<div class="qsvg">'+g.svg+'</div>':'')+
+    '<div class="ansrow"><label class="sr" for="gans">Your answer</label><input id="gans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="Your answer" value="'+S7.esc(s.v||'')+'"><button type="button" class="btn gold" id="gsend">Check</button></div>'+
+    '<div id="gver" class="verdict"></div>'+
+    '<div class="prow"><button type="button" class="btn small grey" id="gsolbtn" aria-expanded="false">Show the worked solution</button></div>'+
+    '<div id="gsol" class="sol" hidden></div></div>';
+  document.body.appendChild(ov);
+  S7.tex(ov);
+  var setSol=solToggle(ov,'g',steps(g.steps,g.a,'Worked solution'));
+  checker(ov,'g',g.answer,function(c,v){ mark('g'+n,c,v); if(c) setSol(true); });
+  function close(){ ov.remove(); document.removeEventListener('keydown',esc); document.body.style.overflow=''; if(view==='grid') renderGrid(document.getElementById('pv')); }
+  function esc(e){ if(e.key==='Escape') close(); }
+  document.addEventListener('keydown',esc);
+  document.body.style.overflow='hidden';
+  ov.querySelector('.x').onclick=close;
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  setTimeout(function(){ var i=ov.querySelector('#gans'); if(i && matchMedia('(pointer:fine)').matches) i.focus(); },60);
+}
+})();
+</script>
+</body>
+</html>
