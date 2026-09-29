@@ -674,3 +674,15 @@ body:has(.stage) .askbtn:hover{background:#F2E8F2}
 /* keep the last line of every screen clear of the message button */
 body:has(#askbtn:not([hidden])) .stage{padding-bottom:calc(clamp(32px,8vh,96px) + 64px + env(safe-area-inset-bottom))}
 body:has(#askbtn:not([hidden])) .wrap{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+
+/* v4: extension hint (student) and hint line in the teacher's question panel */
+.extcard .hintrow{margin-top:14px}
+.extcard .hintrow .btn{--bg:transparent;--fg:#fff;--bd:rgba(255,255,255,.55)}
+.extcard .hintrow .btn:hover{--bg:rgba(255,255,255,.12);--bd:#fff}
+.extcard .hint{margin-top:10px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.12);border-left:4px solid var(--pink);font-size:16px;line-height:1.5;color:#fff}
+.extcard .hint .lab{display:inline;margin-right:6px;color:#fff;opacity:.85}
+.qp-eh{margin-top:8px;font-size:14px;color:var(--ink-2)}
+.qp-eh .lab{display:inline;margin-right:6px}
+.fsheet{display:inline-block;margin-top:8px;padding:4px 12px;border:1.5px solid currentColor;border-radius:6px;font-size:.88em;opacity:.9}
+.extcard .sol .solinner{color:var(--ink)}
+.extcard .sol .solinner .step span:last-child{color:var(--ink)}

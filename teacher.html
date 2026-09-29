@@ -110,7 +110,7 @@ function renderSetup(){
     var p=document.getElementById('pk').value;
     var id=p+'-'+Date.now().toString(36);
     db.set('s7/sessions/'+id+'/meta',{pack:p,started:db.serverTime()})
-      .then(function(){ return db.set('s7/sessions/'+id+'/state',{mode:'lobby',key:0,reveal:0,gridAns:0,gridSol:0}); })
+      .then(function(){ return db.set('s7/sessions/'+id+'/state',{mode:'lobby',key:0,reveal:0,extSol:0,gridAns:0,gridSol:0}); })
       .then(function(){ return db.set('s7/current', id); });
   };
 }
@@ -167,7 +167,7 @@ function shell(){
       '<button class="btn small'+(state.mode==='grid'?' on':'')+'" data-mode="grid">The twelve</button>'+
       '<button class="btn small'+(state.mode==='done'?' on':'')+'" data-mode="done">Finish</button>'+
       '<span class="sp"></span>'+
-      (state.mode==='youdo'?toggle('rev','Worked solution'):'')+
+      (state.mode==='youdo'?toggle('rev','Worked solution')+toggle('xsol','Extension solution'):'')+
       (state.mode==='grid'?toggle('ga','Answers')+toggle('gs','Solutions'):'')+
       '<button class="btn grey small" id="reset" title="Clear every student, answer and note">Reset</button>'+
     '</div>'+
@@ -178,9 +178,10 @@ function shell(){
     '<div class="roster"><div class="rhead"><label class="sr" for="find">Find a student</label><input id="find" class="inp" type="search" autocomplete="off" spellcheck="false" placeholder="Find a student by name"><span class="muted" id="rcount"></span></div><div class="rlist" id="rlist"></div></div>'+
     '</div><aside class="dside"><section class="inbox" id="inbox" aria-live="polite"></section></aside></div>'+
     '</div><div id="focus" role="dialog" aria-label="Student board"></div>';
-  main.querySelectorAll('[data-mode]').forEach(function(b){ b.onclick=function(){ setState({mode:b.dataset.mode, key:0, reveal:0}); }; });
-  main.querySelectorAll('[data-go]').forEach(function(b){ b.onclick=function(){ setState({mode:'youdo', key:+b.dataset.go, reveal:0}); }; });
+  main.querySelectorAll('[data-mode]').forEach(function(b){ b.onclick=function(){ setState({mode:b.dataset.mode, key:0, reveal:0, extSol:0}); }; });
+  main.querySelectorAll('[data-go]').forEach(function(b){ b.onclick=function(){ setState({mode:'youdo', key:+b.dataset.go, reveal:0, extSol:0}); }; });
   var r=document.getElementById('rev'); if(r) r.onclick=function(){ setState({reveal: state.reveal?0:1}); };
+  var xs=document.getElementById('xsol'); if(xs) xs.onclick=function(){ setState({extSol: state.extSol?0:1}); };
   var ga=document.getElementById('ga'); if(ga) ga.onclick=function(){ setState({gridAns: state.gridAns?0:1}); };
   var gs=document.getElementById('gs'); if(gs) gs.onclick=function(){ setState({gridSol: state.gridSol?0:1}); };
   main.querySelectorAll('.gq').forEach(function(b){ b.onclick=function(){ b.classList.toggle('open'); }; });
@@ -190,7 +191,7 @@ function shell(){
   paintControls(); paintInbox(); paintCounts();
 }
 /* on/off switches, repainted on every state change so they can never show the wrong thing */
-var TOG={rev:'reveal', ga:'gridAns', gs:'gridSol'};
+var TOG={rev:'reveal', xsol:'extSol', ga:'gridAns', gs:'gridSol'};
 function toggle(id,label){
   return '<button type="button" class="tog" id="'+id+'" role="switch" aria-checked="false"><i aria-hidden="true"></i>'+
     '<span class="tl">'+label+'</span><span class="ts">Hidden</span></button>';
@@ -205,6 +206,9 @@ function paintControls(){
   var rs=document.getElementById('revstate');
   if(rs){ rs.className='qp-rev'+(state.reveal?' on':'');
     rs.textContent=state.reveal?'Worked solution is showing on every student\'s screen':'Worked solution is hidden from students'; }
+  var xst=document.getElementById('xsolstate');
+  if(xst){ xst.className='qp-rev'+(state.extSol?' on':'');
+    xst.textContent=state.extSol?'Extension solution is showing on every student\'s screen':'Extension solution is hidden (students who get it right still see it)'; }
   var gst=document.getElementById('gridstate');
   if(gst){ gst.className='qp-rev'+((state.gridAns||state.gridSol)?' on':'');
     gst.textContent=(state.gridAns?'Answers showing':'Answers hidden')+', '+(state.gridSol?'solutions showing':'solutions hidden')+' on students\' screens'; }
@@ -222,7 +226,8 @@ function qpanel(){
         '<div class="qp-ans"><span class="lab">Answer</span><span class="v">'+(Q.final||S7.esc(String(Q.answer&&Q.answer.value!=null?Q.answer.value:'')))+'</span></div>'+
         '<p class="qp-rev" id="revstate"></p>'+
         (Q.ext?'<div class="qp-ext"><span class="lab">Extension, opens on a correct answer</span><div class="qp-eq">'+Q.ext.q+'</div>'+
-          (Q.ext.final?'<div class="qp-ea"><span class="lab">Answer</span> '+Q.ext.final+'</div>':'')+'</div>':'')+
+          (Q.ext.hint?'<div class="qp-eh"><span class="lab">Hint</span> '+Q.ext.hint+'</div>':'')+
+          (Q.ext.final?'<div class="qp-ea"><span class="lab">Answer</span> '+Q.ext.final+'</div>':'')+'<p class="qp-rev" id="xsolstate"></p></div>':'')+
       '</div></section>';
   }
   if(state.mode==='grid'){
@@ -244,8 +249,8 @@ function countsDirty(){ if(dirty) return; dirty=true; setTimeout(function(){ dir
 function paintCounts(){
   document.getElementById('cap').textContent=nStud+' in the room';
   var t=document.getElementById('tally'); if(!t) return;
-  var ans=0, cor=0, ext=0;
-  for(var k in answers){ var a=answers[k]; if(a.v!=null) ans++; if(a.c) cor++; if(a.x) ext++; }
+  var ans=0, cor=0, ext=0, hin=0;
+  for(var k in answers){ var a=answers[k]; if(a.v!=null) ans++; if(a.c) cor++; if(a.x) ext++; if(a.h) hin++; }
   function tile(n,l,cls){ return '<div class="tile '+(cls||'')+'"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>'; }
   if(state.mode==='youdo'){
     var pct = ans? Math.round(cor/ans*100) : 0;
@@ -256,7 +261,7 @@ function paintCounts(){
                 '<div class="meter"><div class="bar" role="img" aria-label="'+cor+' correct, '+wrong+' not yet, '+wait+' still working">'+
                   seg(Math.max(0,cor-ext),'c')+seg(ext,'x')+seg(wrong,'w')+'</div>'+
                 '<div class="key"><span style="--kc:var(--green)">'+Math.max(0,cor-ext)+' correct</span><span style="--kc:var(--deep)">'+ext+' correct and extension done</span>'+
-                  '<span style="--kc:var(--orange)">'+wrong+' not yet</span><span style="--kc:var(--line-2)">'+wait+' still working</span></div></div>';
+                  '<span style="--kc:var(--orange)">'+wrong+' not yet</span><span style="--kc:var(--line-2)">'+wait+' still working</span>'+(hin?'<span style="--kc:var(--pink)">'+hin+' opened the extension hint</span>':'')+'</div></div>';
   } else {
     t.innerHTML=tile(nStud,'in the room');
   }

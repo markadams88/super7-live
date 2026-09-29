@@ -78,7 +78,7 @@ if(db.kind==='firebase'){ var wasOn=false;
 var sid=null, pack=null, state=null, name=null;
 var unsubs=[], perStudent=[];
 var board=null, extBoard=null, boardTimer=null;
-var shown={mode:null,key:null,reveal:null,gridAns:null,gridSol:null};
+var shown={mode:null,key:null,reveal:null,extSol:null,gridAns:null,gridSol:null};
 var mine={};              /* {key:{v,c,x}} what I have answered this session */
 var onExt=false;
 
@@ -216,8 +216,11 @@ function render(){
     return;
   }
   if(m==='youdo'){
-    if(!same){ shown={mode:m,key:state.key,reveal:state.reveal}; renderYouDo(); }
-    else if(state.reveal!==shown.reveal){ shown.reveal=state.reveal; paintSolution(); }
+    if(!same){ shown={mode:m,key:state.key,reveal:state.reveal,extSol:state.extSol}; renderYouDo(); }
+    else {
+      if(state.reveal!==shown.reveal){ shown.reveal=state.reveal; paintSolution(); }
+      if(state.extSol!==shown.extSol){ shown.extSol=state.extSol; paintExtSolution(); }
+    }
     return;
   }
 }
@@ -244,7 +247,7 @@ function renderDone(){
 function q(key){ return (pack.youdo||[]).filter(function(x){ return x.n===key; })[0]; }
 function renderYouDo(){
   var Q=q(state.key); if(!Q){ main.innerHTML=''; return; }
-  onExt=false;
+  onExt=false; extDone=false;
   var got=mine[state.key]||{};
   var all=pack.youdo||[];
   main.innerHTML=
@@ -267,17 +270,17 @@ function renderYouDo(){
   S7.tex(document.getElementById('qt'));
   board=S7.Board(document.getElementById('bd'),{});
   S7.wireTools(main.querySelector('.tools'), board);
-  document.getElementById('send').onclick=submit;
-  document.getElementById('ans').addEventListener('keydown',function(e){ if(e.key==='Enter') submit(); });
+  document.getElementById('send').onclick=function(){ submit(false); };
+  document.getElementById('ans').addEventListener('keydown',function(e){ if(e.key==='Enter') submit(false); });
   if(got.v) verdict(got.c);
   if(got.c) openExtension(true);
-  paintSolution();
+  paintSolution(); paintExtSolution();
 }
-function submit(){
+function submit(fromExt){
   var Q=q(state.key); if(!Q) return;
-  var el=document.getElementById(onExt?'extans':'ans');
+  var el=document.getElementById(fromExt?'extans':'ans');
   var v=(el.value||'').trim(); if(!v){ toast('Type your answer first'); return; }
-  if(onExt){
+  if(fromExt){
     var ok=S7.checkAnswer(Q.ext.answer, v);
     db.update(base()+'/an/'+state.key+'/'+uid, {x: ok?1:0, xv:v.slice(0,40)});
     extVerdict(ok);
@@ -305,14 +308,22 @@ function openExtension(quiet){
   box.innerHTML='<div class="extcard"><div class="exthead"><span class="tag gold">Extension</span>'+
       '<span class="muted">One harder question, then hang on for the next one</span></div>'+
       '<div class="qtext" id="ext_qt">'+Q.ext.q+'</div>'+
+      (Q.ext.hint?'<div class="hintrow"><button type="button" class="btn small grey" id="exthintbtn" aria-expanded="false">Show a hint</button><div class="hint" id="exthint" hidden></div></div>':'')+
       '<div class="boardwrap small"><canvas id="extbd"></canvas></div>'+
       '<div class="ansrow"><label class="sr" for="extans">Extension answer</label><input id="extans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="Extension answer">'+
       '<button type="button" class="btn gold" id="extsend">Check</button></div><div id="extverdict" class="verdict"></div>'+
       '<div id="extsol" class="sol"></div></div>';
   S7.tex(document.getElementById('ext_qt'));
   extBoard=S7.Board(document.getElementById('extbd'),{});
-  document.getElementById('extsend').onclick=submit;
-  document.getElementById('extans').addEventListener('keydown',function(e){ if(e.key==='Enter') submit(); });
+  var hb=document.getElementById('exthintbtn');
+  if(hb) hb.onclick=function(){
+    var h=document.getElementById('exthint'), open=h.hidden;
+    if(open && !h.innerHTML){ h.innerHTML='<span class="lab">Hint</span> '+Q.ext.hint; S7.tex(h); }
+    h.hidden=!open; hb.setAttribute('aria-expanded',open?'true':'false'); hb.textContent=open?'Hide the hint':'Show a hint';
+    if(open) db.update(base()+'/an/'+state.key+'/'+uid, {h:1});
+  };
+  document.getElementById('extsend').onclick=function(){ submit(true); };
+  document.getElementById('extans').addEventListener('keydown',function(e){ if(e.key==='Enter') submit(true); });
   if(!quiet) setTimeout(function(){ box.scrollIntoView({behavior:'smooth',block:'nearest'}); },250);
 }
 function extVerdict(ok){
@@ -321,13 +332,19 @@ function extVerdict(ok){
   d.className='verdict '+(ok?'ok':'no');
   d.innerHTML=ok?'<div><b>Correct.</b> That is the extension done. Sit tight for the next question.</div>'
                 :'<div><b>Not quite.</b> Try again, or wait for Mr Adams to go through it.</div>';
-  if(ok){
-    var s=document.getElementById('extsol');
-    s.innerHTML='<div class="solinner"><div class="lab">How it works</div>'+
-      (Q.ext.steps||[]).map(function(st){ return '<div class="step"><span class="t">'+S7.esc(st.t)+'</span><span>'+st.m+'</span></div>'; }).join('')+
-      (Q.ext.final?'<div class="final">'+Q.ext.final+'</div>':'')+'</div>';
-    S7.tex(s);
-  }
+  if(ok){ extDone=true; paintExtSolution(); }
+}
+/* the extension's worked solution: shown to anyone who gets it right, and to everyone once Mr Adams switches it on */
+var extDone=false;
+function paintExtSolution(){
+  var Q=q(state.key); if(!Q||!Q.ext) return;
+  if(state.extSol && !document.getElementById('extsol')) openExtension(true);
+  var s=document.getElementById('extsol'); if(!s) return;
+  if(!(extDone||state.extSol)){ s.innerHTML=''; return; }
+  s.innerHTML='<div class="solinner"><div class="lab">'+(extDone?'How it works':'Worked solution to the extension')+'</div>'+
+    (Q.ext.steps||[]).map(function(st){ return '<div class="step"><span class="t">'+S7.esc(st.t)+'</span><span>'+st.m+'</span></div>'; }).join('')+
+    (Q.ext.final?'<div class="final">'+Q.ext.final+'</div>':'')+'</div>';
+  S7.tex(s);
 }
 function paintSolution(){
   var s=document.getElementById('sol'); if(!s) return;
