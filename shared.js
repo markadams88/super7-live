@@ -101,11 +101,150 @@ function toNumber(s){
   if(/^-?\d+(?:\.\d+)?(e-?\d+)?$/.test(s)) return parseFloat(s);
   return NaN;
 }
+/* ---------- answers with more than one number, equations and algebra ----------
+   kind:'set'   values:[a,b]       two or more numbers in any order (quadratic roots)
+   kind:'vars'  vars:{x:3,y:-2}    named values, typed "x = 3, y = -2" or "3, -2" in that order
+   kind:'line'  m:2, c:-3          any correct equation of the line y = mx + c
+   kind:'expr'  expr:'(a+b)/c', subject:'x'   an expression, checked by evaluating at random values
+   ratio values may have any number of parts (12:10:15)                                   */
+var NUMRE=/-?\d+(?:\.\d+)?(?:\/\d+(?:\.\d+)?)?/g;
+function numsIn(s){ return (String(s).replace(/−/g,'-').replace(/\s+/g,'').match(NUMRE)||[]).map(function(t){ var p=t.split('/'); return p.length>1?parseFloat(p[0])/parseFloat(p[1]):parseFloat(p[0]); }); }
+function close(a,b,tol){ return Math.abs(a-b)<=Math.max(tol||0, Math.abs(b)*0.002, 0.005); }
+/* a small safe expression evaluator: numbers, single-letter variables, + - * / ^, brackets,
+   sqrt/√, pi/π, implicit multiplication (2x, 3(x+1), ab) */
+function parseExpr(src){
+  var s=String(src).replace(/−/g,'-').replace(/[×·]/g,'*').replace(/÷/g,'/')
+    .replace(/π/g,'pi').replace(/√/g,'sqrt').replace(/\s+/g,'')
+    .replace(/[½¼¾⅓⅔]/g,function(c){ return '('+({'½':'1/2','¼':'1/4','¾':'3/4','⅓':'1/3','⅔':'2/3'})[c]+')'; })
+    .replace(/[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+/g,function(t){ return '^('+t.split('').map(function(c){ return '⁻⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(c)===0?'-':String('⁻⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(c)-1); }).join('')+')'; })
+    .toLowerCase();
+  var toks=[], i=0, m;
+  while(i<s.length){
+    var r=s.slice(i);
+    if((m=/^\d+(\.\d+)?|^\.\d+/.exec(r))){ toks.push({t:'n',v:parseFloat(m[0])}); i+=m[0].length; continue; }
+    if((m=/^(sqrt|cbrt|pi)/.exec(r))){ toks.push(m[1]==='pi'?{t:'n',v:Math.PI}:{t:'f',v:m[1]}); i+=m[0].length; continue; }
+    if(/^[a-z]/.test(r)){ toks.push({t:'v',v:r[0]}); i++; continue; }
+    if(/^[-+*\/^()]/.test(r)){ toks.push({t:r[0]}); i++; continue; }
+    throw new Error('bad char '+r[0]);
+  }
+  /* insert implicit multiplication */
+  var out=[];
+  for(var k=0;k<toks.length;k++){
+    var a=out[out.length-1], b=toks[k];
+    if(a && (a.t==='n'||a.t==='v'||a.t===')') && (b.t==='n'||b.t==='v'||b.t==='('||b.t==='f')) out.push({t:'*'});
+    out.push(b);
+  }
+  var pos=0;
+  function peek(){ return out[pos]; }
+  function eat(t){ if(out[pos]&&out[pos].t===t){ pos++; return true; } return false; }
+  function expr(){ var n=term(); while(peek()&&(peek().t==='+'||peek().t==='-')){ var o=out[pos++].t, r=term(); n=(function(l,r,o){ return function(e){ return o==='+'?l(e)+r(e):l(e)-r(e); }; })(n,r,o); } return n; }
+  function term(){ var n=unary(); while(peek()&&(peek().t==='*'||peek().t==='/')){ var o=out[pos++].t, r=unary(); n=(function(l,r,o){ return function(e){ return o==='*'?l(e)*r(e):l(e)/r(e); }; })(n,r,o); } return n; }
+  function unary(){ if(eat('-')){ var u=unary(); return function(e){ return -u(e); }; } if(eat('+')) return unary(); return power(); }
+  function power(){ var b=prim(); if(eat('^')){ var x=unary(); return function(e){ return Math.pow(b(e),x(e)); }; } return b; }
+  function prim(){
+    var t=out[pos++]; if(!t) throw new Error('end');
+    if(t.t==='n') return function(){ return t.v; };
+    if(t.t==='v') return function(e){ if(!(t.v in e)) throw new Error('var '+t.v); return e[t.v]; };
+    if(t.t==='('){ var n=expr(); if(!eat(')')) throw new Error(')'); return n; }
+    if(t.t==='f'){ var a=power(); return t.v==='sqrt'?function(e){ return Math.sqrt(a(e)); }:function(e){ return Math.cbrt(a(e)); }; }
+    throw new Error('unexpected '+t.t);
+  }
+  var f=expr(); if(pos!==out.length) throw new Error('trailing');
+  return f;
+}
+S7.parseExpr=parseExpr;
+function sameFn(f, g, names, n){
+  var ok=0, tries=0, seed=7;
+  function rnd(){ seed=(seed*16807)%2147483647; return seed/2147483647; }
+  while(ok<(n||6) && tries<60){
+    tries++; var e={}; names.forEach(function(v){ e[v]=tries<=20?1.3+2.4*rnd():0.5+40*rnd(); });   /* wider values later, so sqrt(x - 7) gets tested too */
+    var a, b; try{ a=f(e); b=g(e); }catch(x){ return false; }
+    if(!isFinite(b)) continue;
+    if(!isFinite(a) || Math.abs(a-b)>1e-6*Math.max(1,Math.abs(b))) return false;
+    ok++;
+  }
+  return ok>=3;
+}
+function varsOf(src){ var v={}; String(src).toLowerCase().replace(/sqrt|cbrt|pi/g,'').replace(/[a-z]/g,function(c){ v[c]=1; return c; }); return Object.keys(v); }
+function checkKind(ans, raw){
+  var s=String(raw).replace(/−/g,'-').trim();
+  if(ans.kind==='set'){
+    var got=numsIn(s), want=(ans.values||[]).slice();
+    if(got.length!==want.length) return false;
+    got.sort(function(a,b){return a-b;}); want.sort(function(a,b){return a-b;});
+    for(var i=0;i<want.length;i++) if(!close(got[i],want[i],ans.tol)) return false;
+    return true;
+  }
+  if(ans.kind==='vars'){
+    var names=Object.keys(ans.vars), low=s.toLowerCase().replace(/\s+/g,''), vals={};
+    var re=/([a-z])=(-?\d+(?:\.\d+)?(?:\/\d+(?:\.\d+)?)?)/g, mm, named=false;
+    while((mm=re.exec(low))){ named=true; var p=mm[2].split('/'); vals[mm[1]]=p.length>1?parseFloat(p[0])/parseFloat(p[1]):parseFloat(p[0]); }
+    if(!named){ var ns=numsIn(low); if(ns.length!==names.length) return false; names.forEach(function(k,i){ vals[k]=ns[i]; }); }
+    return names.every(function(k){ return (k in vals) && close(vals[k], ans.vars[k], ans.tol); }) && Object.keys(vals).length===names.length;
+  }
+  if(ans.kind==='line'){
+    var parts=s.split('='); if(parts.length>2) return false;
+    var L, R;
+    try{ if(parts.length===1){ L=parseExpr('y'); R=parseExpr(parts[0]); } else { L=parseExpr(parts[0]); R=parseExpr(parts[1]); } }catch(x){ return false; }
+    function F(x,y){ var e={x:x,y:y}; return L(e)-R(e); }
+    var C, A, B, T;
+    try{ C=F(0,0); A=F(1,0)-C; B=F(0,1)-C; T=F(2.5,-1.5); }catch(x){ return false; }
+    if(!isFinite(C)||!isFinite(A)||!isFinite(B)||Math.abs(B)<1e-9) return false;
+    if(Math.abs(T-(2.5*A-1.5*B+C))>1e-6*Math.max(1,Math.abs(T))) return false;   /* not a straight line */
+    return close(-A/B, ans.m, 1e-6) && close(-C/B, ans.c, 1e-6);
+  }
+  if(ans.kind==='expr'){
+    s=s.replace(/±|\+\/-/g,'');                 /* t = ±√(2s/a): the ± is fine, check the root */
+    if(ans.subject && /[,;]|\band\b/.test(s)){       /* "x = p/4, y = 3p/2": keep the part for the subject */
+      var bits=s.split(/[,;]|\band\b/).filter(function(t){ return t.replace(/\s+/g,'').toLowerCase().indexOf(ans.subject+'=')===0; });
+      if(bits.length===1) s=bits[0].trim();
+    }
+    var body=s;
+    if(ans.subject){
+      var eq=s.split('='); if(eq.length===2){ if(eq[0].replace(/\s+/g,'').toLowerCase()!==ans.subject) return false; body=eq[1]; }
+      else if(eq.length>2) return false;
+    } else {
+      var eq2=s.split('='); if(eq2.length===2) body=eq2[1];        /* f⁻¹(x) = ..., or y = ... when no subject is set */
+    }
+    var want2, got2;
+    try{ want2=parseExpr(ans.expr); got2=parseExpr(body); }catch(x){ return false; }
+    var names2=varsOf(ans.expr); varsOf(body).forEach(function(v){ if(names2.indexOf(v)<0) names2.push(v); });
+    return sameFn(got2, want2, names2);
+  }
+  return null;
+}
+/* what to type, for answers with more than one part (shown under the question) */
+S7.askHTML=function(ans){ return (ans&&ans.ask)?'<div class="askline">Type '+S7.esc(ans.ask)+'</div>':''; };
+S7.ph=function(ans, d){ return S7.esc((ans&&ans.ask)?ans.ask.charAt(0).toUpperCase()+ans.ask.slice(1):d); };
+/* a mixed number typed with a space, 2 7/9, before the spaces are squeezed out */
+function mixedNum(raw){
+  var m=/^\s*(-?)(\d+)\s+(\d+)\s*\/\s*(\d+)\s*$/.exec(String(raw).replace(/−/g,'-').replace(/£|€|\$/g,''));
+  if(!m) return null;
+  var v=parseFloat(m[2])+parseFloat(m[3])/parseFloat(m[4]);
+  return m[1]==='-'?-v:v;
+}
 S7.checkAnswer=function(ans, given){
   if(!ans) return null;
+  /* a probability typed as a percentage, 56.25%, is the same as 0.5625 */
+  if(ans.prob && !ans.kind && /%\s*$/.test(String(given))){ var pv=toNumber(String(given).replace(/%\s*$/,'')); if(!isNaN(pv)) given=String(pv/100); }
   var g=norm(given); if(!g) return null;
+  var mx=mixedNum(given);
+  if(mx!==null && !ans.kind && typeof ans.value==='number'){
+    var tl=ans.strict?(ans.tol||0.005):Math.max(ans.tol||0, Math.abs(ans.value)*0.002, 0.005);
+    return Math.abs(mx-ans.value)<=tl;
+  }
   var acc=(ans.accept||[]).map(norm);
   if(acc.indexOf(g)>=0) return true;
+  if(ans.kind==='set'||ans.kind==='vars'||ans.kind==='line'||ans.kind==='expr') return !!checkKind(ans, given);
+  if(ans.kind==='ratio'){
+    /* ratios with any number of parts, compared by proportion */
+    var pg=g.split(':'), pw=norm(ans.value).split(':');
+    if(pg.length>2 && pg.length===pw.length){
+      var ng=pg.map(toNumber), nw=pw.map(toNumber);
+      if(ng.some(isNaN)||nw.some(isNaN)) return false;
+      return ng.every(function(v,i){ return Math.abs(v/ng[0] - nw[i]/nw[0])<1e-6; });
+    }
+  }
   if(ans.kind==='ratio' || typeof ans.value==='string'){
     var want=norm(ans.value);
     if(g===want) return true;

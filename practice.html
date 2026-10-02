@@ -172,7 +172,7 @@ function renderYouDo(pv, n){
     '<div class="qhead"><span class="tag">You do '+n+' of '+all.length+'</span><span class="muted">'+S7.esc(S7.subTitle(Q.sub)||'')+'</span></div>'+
     '<div class="qtext" id="qt">'+Q.q+'</div>'+
     (Q.svg?'<div class="qsvg">'+Q.svg+'</div>':'')+
-    '<div class="ansrow"><label class="sr" for="yans">Your answer</label><input id="yans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="Your answer" value="'+S7.esc(g.v||'')+'">'+
+    S7.askHTML(Q.answer)+'<div class="ansrow"><label class="sr" for="yans">Your answer</label><input id="yans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="'+S7.ph(Q.answer,'Your answer')+'" value="'+S7.esc(g.v||'')+'">'+
       '<button type="button" class="btn gold" id="ysend">Check</button></div>'+
     '<div id="yver" class="verdict"></div>'+
     '<div class="prow"><button type="button" class="btn small grey" id="ysolbtn" aria-expanded="false">Show the worked solution</button>'+
@@ -198,7 +198,7 @@ function renderYouDo(pv, n){
       '<div class="qtext" id="xqt">'+Q.ext.q+'</div>'+
       (Q.ext.svg?'<div class="qsvg">'+Q.ext.svg+'</div>':'')+
       (Q.ext.hint?'<div class="hintrow"><button type="button" class="btn small grey" id="xhintbtn" aria-expanded="false">Show a hint</button><div class="hint" id="xhint" hidden></div></div>':'')+
-      '<div class="ansrow"><label class="sr" for="xans">Extension answer</label><input id="xans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="Extension answer" value="'+S7.esc(xg.v||'')+'">'+
+      S7.askHTML(Q.ext.answer)+'<div class="ansrow"><label class="sr" for="xans">Extension answer</label><input id="xans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="'+S7.ph(Q.ext.answer,'Extension answer')+'" value="'+S7.esc(xg.v||'')+'">'+
       '<button type="button" class="btn gold" id="xsend">Check</button></div><div id="xver" class="verdict"></div>'+
       '<div class="prow"><button type="button" class="btn small grey" id="xsolbtn" aria-expanded="false">Show the worked solution</button></div>'+
       '<div id="xsol" class="sol" hidden></div></div>';
@@ -237,7 +237,7 @@ function openGridQ(n){
   ov.innerHTML='<div class="overbox"><button type="button" class="x" aria-label="Close">&times;</button>'+
     '<div class="qhead"><span class="tag">Question '+n+' of '+(pack.grid||[]).length+'</span>'+(g.marks?'<span class="muted">'+g.marks+' mark'+(g.marks>1?'s':'')+'</span>':'')+'</div>'+
     '<div class="qtext">'+g.q+'</div>'+(g.svg?'<div class="qsvg">'+g.svg+'</div>':'')+
-    '<div class="ansrow"><label class="sr" for="gans">Your answer</label><input id="gans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="Your answer" value="'+S7.esc(s.v||'')+'"><button type="button" class="btn gold" id="gsend">Check</button></div>'+
+    S7.askHTML(g.answer)+'<div class="ansrow"><label class="sr" for="gans">Your answer</label><input id="gans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="'+S7.ph(g.answer,'Your answer')+'" value="'+S7.esc(s.v||'')+'"><button type="button" class="btn gold" id="gsend">Check</button></div>'+
     '<div id="gver" class="verdict"></div>'+
     '<div class="prow"><button type="button" class="btn small grey" id="gsolbtn" aria-expanded="false">Show the worked solution</button></div>'+
     '<div id="gsol" class="sol" hidden></div></div>';

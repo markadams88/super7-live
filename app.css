@@ -720,3 +720,6 @@ a.chip:hover{background:rgba(255,255,255,.18)}
   .pq.wide{margin-left:0;flex:1 0 100%}
   .pnext .btn{flex:1}
 }
+/* what to type, for answers with more than one part */
+.askline{margin:10px 0 -2px;font-size:15px;color:#610064;font-weight:600}
+.extcard .askline{color:#FFD9EC}

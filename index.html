@@ -275,7 +275,7 @@ function renderYouDo(){
       (Q.svg?'<div class="qsvg">'+Q.svg+'</div>':'')+
       '<div class="boardwrap"><canvas id="bd"></canvas></div>'+
       S7.toolsHTML()+
-      '<div class="ansrow"><label class="sr" for="ans">Your answer</label><input id="ans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="Your answer" value="'+S7.esc(got.v||'')+'">'+
+      S7.askHTML(Q.answer)+'<div class="ansrow"><label class="sr" for="ans">Your answer</label><input id="ans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="'+S7.ph(Q.answer,'Your answer')+'" value="'+S7.esc(got.v||'')+'">'+
         '<button type="button" class="btn gold" id="send">Check</button></div>'+
       '<div id="verdict" class="verdict"></div>'+
       '<div id="extbox"></div>'+
@@ -333,9 +333,10 @@ function openExtension(quiet){
   box.innerHTML='<div class="extcard"><div class="exthead"><span class="tag gold">Extension</span>'+
       '<span class="muted">One harder question, then hang on for the next one</span></div>'+
       '<div class="qtext" id="ext_qt">'+Q.ext.q+'</div>'+
+      (Q.ext.svg?'<div class="qsvg">'+Q.ext.svg+'</div>':'')+
       (Q.ext.hint?'<div class="hintrow"><button type="button" class="btn small grey" id="exthintbtn" aria-expanded="false">Show a hint</button><div class="hint" id="exthint" hidden></div></div>':'')+
       '<div class="boardwrap small"><canvas id="extbd"></canvas></div>'+
-      '<div class="ansrow"><label class="sr" for="extans">Extension answer</label><input id="extans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="Extension answer">'+
+      S7.askHTML(Q.ext.answer)+'<div class="ansrow"><label class="sr" for="extans">Extension answer</label><input id="extans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="'+S7.ph(Q.ext.answer,'Extension answer')+'">'+
       '<button type="button" class="btn gold" id="extsend">Check</button></div><div id="extverdict" class="verdict"></div>'+
       '<div id="extsol" class="sol"></div></div>';
   S7.tex(document.getElementById('ext_qt'));
@@ -409,7 +410,7 @@ function openGridQ(n){
     '<div class="qhead"><span class="tag">Question '+n+' of 12</span>'+(g.marks?'<span class="muted">'+g.marks+' mark'+(g.marks>1?'s':'')+'</span>':'')+'</div>'+
     '<div class="qtext">'+g.q+'</div>'+(g.svg?'<div class="qsvg">'+g.svg+'</div>':'')+
     '<div class="boardwrap"><canvas id="gbd"></canvas></div>'+S7.toolsHTML()+
-    '<div class="ansrow"><label class="sr" for="gans">Your answer</label><input id="gans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="Your answer"><button type="button" class="btn gold" id="gsend">Check</button></div>'+
+    S7.askHTML(g.answer)+'<div class="ansrow"><label class="sr" for="gans">Your answer</label><input id="gans" class="inp" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="'+S7.ph(g.answer,'Your answer')+'"><button type="button" class="btn gold" id="gsend">Check</button></div>'+
     '<div id="gver" class="verdict"></div><div id="gsol" class="sol"></div></div>';
   document.body.appendChild(ov);
   S7.tex(ov);
